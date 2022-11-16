@@ -38,6 +38,7 @@ fn get_pretty_score(real_score: i32) -> i32 {
 #[derive(Clone)]
 pub struct GameParams {
     pub game: Game,
+    pub games_history: Vec<Game>,
     pub available_cells_to_move: HashMap<i8, i8>,
     pub selected_checker: Option<i8>,
     pub all_moves_string: String,
@@ -81,10 +82,6 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
         } {
             params.full_current_move = best_move.clone();
             params.game.make_move((best_move, is_cutting));
-            // params.white_ai_eval = score;
-            // if !params.game.current_player {
-            //     params.white_ai_eval = -params.white_ai_eval;
-            // }
         }
         params.game.change_player();
         params.all_moves_string = get_all_moves_string(&params.game);
@@ -102,11 +99,12 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
                     let cut_i = params.available_cells_to_move[&to];
                     params.available_cells_to_move.clear();
                     if cut_i == -1 {
+                        // params.games_history.push();
                         params.game.make_pawn_move(from, to);
-                        params.selected_checker = None;
                         params.full_current_move = vec![(from, -1), (to, -1)];
-                        params.move_n += 1;
+                        params.selected_checker = None;
                         params.game.change_player();
+                        params.move_n += 1;
                     } else {
                         if let Some((to, _)) = params.full_current_move.last() {
                             // if game.get_cuts_from_cell(*to).is_empty()
@@ -153,6 +151,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
     }
     params.first_frame = false;
     egui_macroquad::ui(|egui_ctx| {
+
         Window::new("Available moves")
             .default_pos(Pos2::new(5.0, 100.0 + min_res * 0.3))
             // .resizable(false)
@@ -188,21 +187,20 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
                     .into(),
                     ..Default::default()
                 });
-                if ui.button("Restart").clicked() {
-                    *scene = Scene::NewGameCreation;
-                    return;
-                }
+                ui.horizontal(|ui| {
+                    if ui.button("Restart").clicked() {
+                        prepare_params_for_new_game(params);
+                        return;
+                    }
+                    if ui.button("New game").clicked() {
+                        *scene = Scene::NewGameCreation;
+                        return;
+                    }
+                });
                 ui.label(
                     format!(
                         "Current white's score: {}",
                         get_pretty_score(params.game.evaluate())
-                    )
-                    .as_str(),
-                );
-                ui.label(
-                    format!(
-                        "AI white's evaluation: {}",
-                        get_pretty_score(params.white_ai_eval)
                     )
                     .as_str(),
                 );
@@ -343,13 +341,17 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
     next_frame().await;
 }
 
-pub async fn new_game(scene: &mut Scene, params: &mut GameParams) {
+pub fn prepare_params_for_new_game(params: &mut GameParams) {
     params.end_of_game = false;
     params.game = Game::new();
     params.full_current_move.clear();
     params.available_cells_to_move.clear();
     params.all_moves_string = get_all_moves_string(&params.game);
     params.first_frame = true;
+}
+
+pub async fn new_game(scene: &mut Scene, params: &mut GameParams) {
+    prepare_params_for_new_game(params);
     let width = screen_width();
     let height = screen_height();
     let min_res = width.min(height);

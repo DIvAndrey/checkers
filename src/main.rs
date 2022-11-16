@@ -51,6 +51,7 @@ async fn main() {
         highlight_color: Color::from_rgba(42, 71, 173, 100),
         font: load_ttf_font_from_bytes(FONT_BYTES).expect("Не удалось загрузить шрифт"),
         game,
+        games_history: Vec::new(),
         available_cells_to_move: HashMap::new(),
         selected_checker: None,
         all_moves_string: "".to_string(),
