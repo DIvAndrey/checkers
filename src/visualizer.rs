@@ -1,9 +1,11 @@
 use crate::game::{Checker, Game, Move};
 use crate::useful_functions::{conv_1d_to_2d, conv_2d_to_1d};
-use egui_macroquad::egui::{Align2, FontFamily, Pos2, Slider, Style, TextStyle, Window};
+use egui_macroquad::egui::{Align2, FontFamily, Pos2, Separator, Slider, Style, TextStyle, Window};
 use egui_macroquad::macroquad::prelude::*;
 use egui_macroquad::{egui};
 use std::collections::{HashMap, BTreeSet};
+
+const UI_SCALE_COEFF: f32 = 1.0 / 300.0;
 
 fn get_all_moves_string(game: &Game) -> String {
     let moves: Vec<Move> = game.get_moves().0.into_iter().collect();
@@ -32,7 +34,6 @@ fn get_pretty_score(real_score: i32) -> i32 {
     } else {
         (real_score - 500) / 1000
     }
-
 }
 
 #[derive(Clone)]
@@ -74,8 +75,10 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     let width = screen_width();
     let height = screen_height();
     let min_res = width.min(height);
-    let x_offset = (width - min_res) / 2.0;
-    let cell_size = min_res / 8.0;
+    let y_offset = min_res * 0.03;
+    let board_width = min_res - y_offset;
+    let x_offset = (width - board_width) / 2.0;
+    let cell_size = board_width / 8.0;
     let texture_draw_offset = cell_size * 0.02;
     let hint_circle_radius = cell_size / 2.0 * 0.4;
     if !params.first_frame && !params.game_params.end_of_game && params.is_ai_player[!params.game_params.game.current_player as usize] {
@@ -92,9 +95,9 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         params.game_params.move_n += 1;
     } else if !params.game_params.end_of_game && is_mouse_button_pressed(MouseButton::Left) {
         let (mouse_x, mouse_y) = mouse_position();
-        if mouse_x >= x_offset {
+        if mouse_x >= x_offset && mouse_y >= y_offset {
             let x = ((mouse_x - x_offset) / cell_size) as usize;
-            let y = (mouse_y / cell_size) as usize;
+            let y = ((mouse_y - y_offset) / cell_size) as usize;
             if x < 8 && y < 8 {
                 let to: i8 = conv_2d_to_1d(x, y);
                 if params.game_params.selected_checker.is_some() && params.game_params.available_cells_to_move.contains_key(&to) {
@@ -155,64 +158,24 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     }
     params.first_frame = false;
     egui_macroquad::ui(|egui_ctx| {
-
-        Window::new("Available moves")
-            .default_pos(Pos2::new(5.0, 100.0 + min_res * 0.3))
-            // .resizable(false)
-            .vscroll(true)
-            .default_height(height - 70.0)
-            .show(egui_ctx, |ui| {
-                ui.set_style(Style {
-                    text_styles: [(
-                        TextStyle::Body,
-                        egui::FontId::new(min_res * 0.05, FontFamily::Monospace),
-                    )]
-                    .into(),
-                    ..Default::default()
-                });
-                if !params.game_params.all_moves_string.is_empty() {
-                    ui.label(params.game_params.all_moves_string.as_str());
-                }
-            });
+        egui_ctx.set_pixels_per_point(min_res * UI_SCALE_COEFF);
         Window::new("Menu")
             .default_pos(Pos2::new(5.0, 30.0))
+            // .auto_sized()
             .show(egui_ctx, |ui| {
-                ui.set_style(Style {
-                    text_styles: [
-                        (
-                            TextStyle::Body,
-                            egui::FontId::new(min_res * 0.03, FontFamily::Monospace),
-                        ),
-                        (
-                            TextStyle::Button,
-                            egui::FontId::new(min_res * 0.03, FontFamily::Monospace),
-                        ),
-                    ]
-                    .into(),
-                    ..Default::default()
-                });
-                ui.horizontal(|ui| {
-                    if ui.button("Restart").clicked() {
-                        prepare_params_for_new_game(params);
-                        return;
-                    }
-                    if ui.button("New game").clicked() {
-                        *scene = Scene::NewGameCreation;
-                        return;
-                    }
-                });
+                if ui.button("Restart ↩").clicked() {
+                    prepare_params_for_new_game(params);
+                    return;
+                }
+                if ui.button("New game ↺").clicked() {
+                    *scene = Scene::NewGameCreation;
+                    return;
+                }
                 if !params.history.is_empty() {
-                    if ui.button("Back").clicked() {
+                    if ui.button("Back ⬅").clicked() {
                         params.game_params = params.history.pop().unwrap();
                     }
                 }
-                ui.label(
-                    format!(
-                        "Current white's score: {}",
-                        get_pretty_score(params.game_params.game.evaluate())
-                    )
-                    .as_str(),
-                );
             });
         if params.game_params.all_moves_string.is_empty() {
             params.game_params.end_of_game = true;
@@ -228,19 +191,11 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 .title_bar(false)
                 .auto_sized()
                 .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
-                .show(egui_ctx, |win_ui| {
-                    win_ui.set_style(Style {
-                        override_text_style: Some(TextStyle::Heading),
-                        text_styles: [(
-                            TextStyle::Heading,
-                            egui::FontId::new(min_res * 0.05, FontFamily::Monospace),
-                        )]
-                        .into(),
-                        ..Default::default()
-                    });
-                    win_ui.label(text.as_str());
-                    if win_ui.button("New game").clicked() {
+                .show(egui_ctx, |ui| {
+                    ui.label(text.as_str());
+                    if ui.button("New game").clicked() {
                         *scene = Scene::NewGameCreation;
+                        return;
                     }
                 });
         }
@@ -250,7 +205,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         let x = i % 8;
         let y = i / 8;
         let real_x1 = x as f32 * cell_size + x_offset;
-        let real_y1 = y as f32 * cell_size;
+        let real_y1 = y as f32 * cell_size + y_offset;
         let (color1, color2) = if (x + y) % 2 == 0 {
             (params.board_white_color, params.board_black_color)
         } else {
@@ -324,7 +279,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 Checker::BlackQueen => params.black_queen_texture,
             };
             let real_x1 = j as f32 * cell_size + x_offset;
-            let real_y1 = i as f32 * cell_size;
+            let real_y1 = i as f32 * cell_size + y_offset;
             draw_texture_ex(
                 texture,
                 real_x1 + texture_draw_offset,
@@ -370,31 +325,15 @@ pub async fn new_game(scene: &mut Scene, params: &mut AllParams) {
     clear_background(LIGHTGRAY);
     egui_macroquad::draw();
     egui_macroquad::ui(|egui_ctx| {
-        Window::new("New game settings")
+        egui_ctx.set_pixels_per_point(min_res * UI_SCALE_COEFF);
+        Window::new("Checkers")
             .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
             .collapsible(false)
+            .resizable(false)
             .show(egui_ctx, |ui| {
-                ui.set_style(Style {
-                    text_styles: [
-                        (
-                            TextStyle::Body,
-                            egui::FontId::new(min_res * 0.03, FontFamily::Monospace),
-                        ),
-                        (
-                            TextStyle::Monospace,
-                            egui::FontId::new(min_res * 0.03, FontFamily::Monospace),
-                        ),
-                        (
-                            TextStyle::Button,
-                            egui::FontId::new(min_res * 0.03, FontFamily::Monospace),
-                        ),
-                    ]
-                    .into(),
-                    ..Default::default()
-                });
                 ui.add(
                     Slider::new(&mut params.search_depth, 1..=15)
-                        .text("Game difficulty (search depth)"),
+                        .text("Difficulty level"),
                 );
                 ui.horizontal(|ui| {
                     ui.label("White checkers:");
@@ -407,7 +346,7 @@ pub async fn new_game(scene: &mut Scene, params: &mut AllParams) {
                     ui.radio_value(&mut params.is_ai_player[1], true, "Computer");
                 });
                 ui.vertical_centered_justified(|ui| {
-                    if ui.small_button("Start the game!").clicked() {
+                    if ui.small_button("Play!").clicked() {
                         *scene = Scene::Game;
                     }
                 });
