@@ -10,7 +10,7 @@ mod useful_functions;
 mod visualizer;
 
 use crate::game::Game;
-use crate::visualizer::{draw_frame, GameParams, Scene};
+use crate::visualizer::{draw_frame, AllParams, Scene, GameParams};
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
 use std::collections::HashMap;
@@ -35,7 +35,17 @@ fn window_conf() -> Conf {
 async fn main() {
     useful_functions::initialize();
     let game = Game::new();
-    let mut game_params = GameParams {
+    let mut game_params = AllParams {
+        game_params: GameParams {
+            game,
+            available_cells_to_move: HashMap::new(),
+            selected_checker: None,
+            all_moves_string: "".to_string(),
+            full_current_move: vec![],
+            white_ai_eval: 0,
+            end_of_game: false,
+            move_n: 0,
+        },
         white_texture: Texture2D::from_file_with_format(WHITE_BYTES, Some(ImageFormat::Png)),
         white_queen_texture: Texture2D::from_file_with_format(
             WHITE_QUEEN_BYTES,
@@ -50,15 +60,7 @@ async fn main() {
         board_black_color: Color::from_rgba(119, 149, 86, 255),
         highlight_color: Color::from_rgba(42, 71, 173, 100),
         font: load_ttf_font_from_bytes(FONT_BYTES).expect("Не удалось загрузить шрифт"),
-        game,
-        games_history: Vec::new(),
-        available_cells_to_move: HashMap::new(),
-        selected_checker: None,
-        all_moves_string: "".to_string(),
-        full_current_move: vec![],
-        white_ai_eval: 0,
-        end_of_game: false,
-        move_n: 0,
+        history: Vec::new(),
         is_ai_player: [false, true],
         search_depth: 12,
         first_frame: true,

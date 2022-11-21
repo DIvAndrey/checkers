@@ -38,18 +38,22 @@ fn get_pretty_score(real_score: i32) -> i32 {
 #[derive(Clone)]
 pub struct GameParams {
     pub game: Game,
-    pub games_history: Vec<Game>,
-    pub available_cells_to_move: HashMap<i8, i8>,
     pub selected_checker: Option<i8>,
     pub all_moves_string: String,
     pub full_current_move: Vec<(i8, i8)>,
     pub white_ai_eval: i32,
+    pub available_cells_to_move: HashMap<i8, i8>,
     pub end_of_game: bool,
     pub move_n: i32,
+}
+
+#[derive(Clone)]
+pub struct AllParams {
+    pub game_params: GameParams,
+    pub history: Vec<GameParams>,
     pub is_ai_player: [bool; 2],
     pub search_depth: i32,
     pub first_frame: bool,
-
     pub white_texture: Texture2D,
     pub white_queen_texture: Texture2D,
     pub black_texture: Texture2D,
@@ -65,7 +69,7 @@ pub enum Scene {
     Game,
 }
 
-pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
+pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     clear_background(LIGHTGRAY);
     let width = screen_width();
     let height = screen_height();
@@ -74,77 +78,77 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
     let cell_size = min_res / 8.0;
     let texture_draw_offset = cell_size * 0.02;
     let hint_circle_radius = cell_size / 2.0 * 0.4;
-    if !params.first_frame && !params.end_of_game && params.is_ai_player[!params.game.current_player as usize] {
-        if let Some((best_move, is_cutting, score)) = if params.game.current_player {
-            params.game.choose_best_move_v7(params.search_depth)
+    if !params.first_frame && !params.game_params.end_of_game && params.is_ai_player[!params.game_params.game.current_player as usize] {
+        if let Some((best_move, is_cutting, score)) = if params.game_params.game.current_player {
+            params.game_params.game.choose_best_move_v7(params.search_depth)
         } else {
-            params.game.choose_best_move_v7(params.search_depth)
+            params.game_params.game.choose_best_move_v7(params.search_depth)
         } {
-            params.full_current_move = best_move.clone();
-            params.game.make_move((best_move, is_cutting));
+            params.game_params.full_current_move = best_move.clone();
+            params.game_params.game.make_move((best_move, is_cutting));
         }
-        params.game.change_player();
-        params.all_moves_string = get_all_moves_string(&params.game);
-        params.move_n += 1
-    } else if !params.end_of_game && is_mouse_button_pressed(MouseButton::Left) {
+        params.game_params.game.change_player();
+        params.game_params.all_moves_string = get_all_moves_string(&params.game_params.game);
+        params.game_params.move_n += 1;
+    } else if !params.game_params.end_of_game && is_mouse_button_pressed(MouseButton::Left) {
         let (mouse_x, mouse_y) = mouse_position();
         if mouse_x >= x_offset {
             let x = ((mouse_x - x_offset) / cell_size) as usize;
             let y = (mouse_y / cell_size) as usize;
             if x < 8 && y < 8 {
                 let to: i8 = conv_2d_to_1d(x, y);
-                if params.selected_checker.is_some() && params.available_cells_to_move.contains_key(&to) {
+                if params.game_params.selected_checker.is_some() && params.game_params.available_cells_to_move.contains_key(&to) {
                     // Making move
-                    let from: i8 = params.selected_checker.unwrap();
-                    let cut_i = params.available_cells_to_move[&to];
-                    params.available_cells_to_move.clear();
+                    params.history.push(params.game_params.clone());
+                    let from: i8 = params.game_params.selected_checker.unwrap();
+                    let cut_i = params.game_params.available_cells_to_move[&to];
+                    params.game_params.available_cells_to_move.clear();
                     if cut_i == -1 {
-                        // params.games_history.push();
-                        params.game.make_pawn_move(from, to);
-                        params.full_current_move = vec![(from, -1), (to, -1)];
-                        params.selected_checker = None;
-                        params.game.change_player();
-                        params.move_n += 1;
+                        params.game_params.game.make_pawn_move(from, to);
+                        params.game_params.full_current_move = vec![(from, -1), (to, -1)];
+                        params.game_params.selected_checker = None;
+                        params.game_params.game.change_player();
+                        params.game_params.move_n += 1;
                     } else {
-                        if let Some((to, _)) = params.full_current_move.last() {
-                            // if game.get_cuts_from_cell(*to).is_empty()
-                            if !params.game.is_empty_cell(*to)
-                                && params.game.is_white_checker(*to) != params.game.current_player
+                        if let Some((to, _)) = params.game_params.full_current_move.last() {
+                            // if params.game_params.game.get_cuts_from_cell(*to).is_empty()
+                            if !params.game_params.game.is_empty_cell(*to)
+                                && params.game_params.game.is_white_checker(*to) != params.game_params.game.current_player
                             {
-                                params.full_current_move.clear();
+                                params.game_params.full_current_move.clear();
                             }
                         }
-                        if params.full_current_move.is_empty() {
-                            params.full_current_move.push((from, -1));
+                        if params.game_params.full_current_move.is_empty() {
+                            params.game_params.full_current_move.push((from, -1));
                         }
-                        params.full_current_move.push((to, cut_i));
-                        params.game.make_cutting_move(from, to, cut_i);
-                        let new_cuts = params.game.get_cuts_from_cell(to);
+                        params.game_params.full_current_move.push((to, cut_i));
+                        params.game_params.game.make_cutting_move(from, to, cut_i);
+                        let new_cuts = params.game_params.game.get_cuts_from_cell(to);
                         if new_cuts.is_empty() {
-                            params.selected_checker = None;
-                            params.game.change_player();
-                            params.move_n += 1;
+                            params.game_params.selected_checker = None;
+                            params.game_params.game.change_player();
+                            params.game_params.move_n += 1;
                         } else {
-                            params.selected_checker = Some(to);
+                            params.game_params.selected_checker = Some(to);
                             for m in new_cuts {
-                                params.available_cells_to_move.insert(m[1].0, m[1].1);
+                                params.game_params.available_cells_to_move.insert(m[1].0, m[1].1);
                             }
                         }
                     }
-                    params.all_moves_string = get_all_moves_string(&params.game);
+                    params.game_params.all_moves_string = get_all_moves_string(&params.game_params.game);
                 } else {
                     // Selecting move
-                    let moves: Vec<Move> = params.game
+                    let moves: Vec<Move> = params.game_params.game
                         .get_moves()
                         .0
                         .into_iter()
                         .filter(|m| conv_1d_to_2d(m[0].0) == (x, y))
                         .collect();
-                    params.available_cells_to_move.clear();
+                    params.game_params.available_cells_to_move.clear();
                     for m in moves {
-                        params.available_cells_to_move.insert(m[1].0, m[1].1);
+                        params.game_params.available_cells_to_move.insert(m[1].0, m[1].1);
                     }
-                    params.selected_checker = Some(conv_2d_to_1d(x, y));
+                    params.game_params.selected_checker = Some(conv_2d_to_1d(x, y));
                 }
             }
         }
@@ -166,8 +170,8 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
                     .into(),
                     ..Default::default()
                 });
-                if !params.all_moves_string.is_empty() {
-                    ui.label(params.all_moves_string.as_str());
+                if !params.game_params.all_moves_string.is_empty() {
+                    ui.label(params.game_params.all_moves_string.as_str());
                 }
             });
         Window::new("Menu")
@@ -197,17 +201,22 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
                         return;
                     }
                 });
+                if !params.history.is_empty() {
+                    if ui.button("Back").clicked() {
+                        params.game_params = params.history.pop().unwrap();
+                    }
+                }
                 ui.label(
                     format!(
                         "Current white's score: {}",
-                        get_pretty_score(params.game.evaluate())
+                        get_pretty_score(params.game_params.game.evaluate())
                     )
                     .as_str(),
                 );
             });
-        if params.all_moves_string.is_empty() {
-            params.end_of_game = true;
-            let winner = if params.game.current_player {
+        if params.game_params.all_moves_string.is_empty() {
+            params.game_params.end_of_game = true;
+            let winner = if params.game_params.game.current_player {
                 "Black"
             } else {
                 "White"
@@ -277,6 +286,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
             );
         }
         if params
+            .game_params
             .full_current_move
             .iter()
             .find(|(x, _)| *x == 63 - i as i8)
@@ -291,6 +301,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
             );
         }
         if params
+            .game_params
             .available_cells_to_move
             .contains_key(&conv_2d_to_1d(x, y))
         {
@@ -302,7 +313,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
             );
         }
     }
-    let game_data = params.game.get_data();
+    let game_data = params.game_params.game.get_data();
     for i in 0..8 {
         for j in 0..8 {
             let texture = match game_data[i][j].clone() {
@@ -341,16 +352,17 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut GameParams) {
     next_frame().await;
 }
 
-pub fn prepare_params_for_new_game(params: &mut GameParams) {
-    params.end_of_game = false;
-    params.game = Game::new();
-    params.full_current_move.clear();
-    params.available_cells_to_move.clear();
-    params.all_moves_string = get_all_moves_string(&params.game);
+pub fn prepare_params_for_new_game(params: &mut AllParams) {
+    params.game_params.end_of_game = false;
+    params.game_params.game = Game::new();
+    params.game_params.full_current_move.clear();
+    params.game_params.available_cells_to_move.clear();
+    params.game_params.all_moves_string = get_all_moves_string(&params.game_params.game);
     params.first_frame = true;
+    params.history.clear();
 }
 
-pub async fn new_game(scene: &mut Scene, params: &mut GameParams) {
+pub async fn new_game(scene: &mut Scene, params: &mut AllParams) {
     prepare_params_for_new_game(params);
     let width = screen_width();
     let height = screen_height();
@@ -404,7 +416,7 @@ pub async fn new_game(scene: &mut Scene, params: &mut GameParams) {
     next_frame().await;
 }
 
-pub async fn draw_frame(scene: &mut Scene, params: &mut GameParams) {
+pub async fn draw_frame(scene: &mut Scene, params: &mut AllParams) {
     match scene {
         Scene::NewGameCreation => new_game(scene, params).await,
         Scene::Game => draw_game_frame(scene, params).await,
