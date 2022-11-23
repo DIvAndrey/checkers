@@ -1,9 +1,11 @@
+use crate::ai_v2::Bot;
 use crate::game::{Checker, Game, Move};
 use crate::useful_functions::{conv_1d_to_2d, conv_2d_to_1d};
+use egui_macroquad::egui;
 use egui_macroquad::egui::{Align2, FontFamily, Pos2, Separator, Slider, Style, TextStyle, Window};
 use egui_macroquad::macroquad::prelude::*;
-use egui_macroquad::{egui};
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{BTreeSet, HashMap};
+use std::mem::swap;
 
 const UI_SCALE_COEFF: f32 = 1.0 / 300.0;
 
@@ -48,11 +50,10 @@ pub struct GameParams {
     pub move_n: i32,
 }
 
-#[derive(Clone)]
 pub struct AllParams {
     pub game_params: GameParams,
     pub history: Vec<GameParams>,
-    pub is_ai_player: [bool; 2],
+    pub players: [Player; 2],
     pub search_depth: i32,
     pub first_frame: bool,
     pub white_texture: Texture2D,
@@ -63,6 +64,12 @@ pub struct AllParams {
     pub board_black_color: Color,
     pub highlight_color: Color,
     pub font: Font,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum Player {
+    Human,
+    Computer(Bot),
 }
 
 pub enum Scene {
@@ -81,18 +88,22 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     let cell_size = board_width / 8.0;
     let texture_draw_offset = cell_size * 0.02;
     let hint_circle_radius = cell_size / 2.0 * 0.4;
-    if !params.first_frame && !params.game_params.end_of_game && params.is_ai_player[!params.game_params.game.current_player as usize] {
-        if let Some((best_move, is_cutting, score)) = if params.game_params.game.current_player {
-            params.game_params.game.choose_best_move_v7(params.search_depth)
+    if let (true, true, Player::Computer(bot)) = (!params.first_frame, !params.game_params.end_of_game, &mut params.players[!params.game_params.game.current_player as usize])
+    {
+        if bot.is_searching && bot.is_search_ended() {
+            bot.is_searching = false;
+            let mut old_bot = Bot::new();
+            swap(bot, &mut old_bot);
+            if let Some((best_move, is_cutting, _)) = old_bot.join.join().unwrap() {
+                params.game_params.full_current_move = best_move.clone();
+                params.game_params.game.make_move((best_move, is_cutting));
+                params.game_params.game.change_player();
+                params.game_params.all_moves_string = get_all_moves_string(&params.game_params.game);
+                params.game_params.move_n += 1;
+            }
         } else {
-            params.game_params.game.choose_best_move_v7(params.search_depth)
-        } {
-            params.game_params.full_current_move = best_move.clone();
-            params.game_params.game.make_move((best_move, is_cutting));
+            bot.start_search(params.game_params.game.clone(), params.search_depth);
         }
-        params.game_params.game.change_player();
-        params.game_params.all_moves_string = get_all_moves_string(&params.game_params.game);
-        params.game_params.move_n += 1;
     } else if !params.game_params.end_of_game && is_mouse_button_pressed(MouseButton::Left) {
         let (mouse_x, mouse_y) = mouse_position();
         if mouse_x >= x_offset && mouse_y >= y_offset {
@@ -100,7 +111,9 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
             let y = ((mouse_y - y_offset) / cell_size) as usize;
             if x < 8 && y < 8 {
                 let to: i8 = conv_2d_to_1d(x, y);
-                if params.game_params.selected_checker.is_some() && params.game_params.available_cells_to_move.contains_key(&to) {
+                if params.game_params.selected_checker.is_some()
+                    && params.game_params.available_cells_to_move.contains_key(&to)
+                {
                     // Making move
                     params.history.push(params.game_params.clone());
                     let from: i8 = params.game_params.selected_checker.unwrap();
@@ -116,7 +129,8 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                         if let Some((to, _)) = params.game_params.full_current_move.last() {
                             // if params.game_params.game.get_cuts_from_cell(*to).is_empty()
                             if !params.game_params.game.is_empty_cell(*to)
-                                && params.game_params.game.is_white_checker(*to) != params.game_params.game.current_player
+                                && params.game_params.game.is_white_checker(*to)
+                                    != params.game_params.game.current_player
                             {
                                 params.game_params.full_current_move.clear();
                             }
@@ -134,14 +148,20 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                         } else {
                             params.game_params.selected_checker = Some(to);
                             for m in new_cuts {
-                                params.game_params.available_cells_to_move.insert(m[1].0, m[1].1);
+                                params
+                                    .game_params
+                                    .available_cells_to_move
+                                    .insert(m[1].0, m[1].1);
                             }
                         }
                     }
-                    params.game_params.all_moves_string = get_all_moves_string(&params.game_params.game);
+                    params.game_params.all_moves_string =
+                        get_all_moves_string(&params.game_params.game);
                 } else {
                     // Selecting move
-                    let moves: Vec<Move> = params.game_params.game
+                    let moves: Vec<Move> = params
+                        .game_params
+                        .game
                         .get_moves()
                         .0
                         .into_iter()
@@ -149,7 +169,10 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                         .collect();
                     params.game_params.available_cells_to_move.clear();
                     for m in moves {
-                        params.game_params.available_cells_to_move.insert(m[1].0, m[1].1);
+                        params
+                            .game_params
+                            .available_cells_to_move
+                            .insert(m[1].0, m[1].1);
                     }
                     params.game_params.selected_checker = Some(conv_2d_to_1d(x, y));
                 }
@@ -161,7 +184,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         egui_ctx.set_pixels_per_point(min_res * UI_SCALE_COEFF);
         Window::new("Menu")
             .default_pos(Pos2::new(5.0, 30.0))
-            // .auto_sized()
+            .resizable(false)
             .show(egui_ctx, |ui| {
                 if ui.button("Restart ↩").clicked() {
                     prepare_params_for_new_game(params);
@@ -331,19 +354,24 @@ pub async fn new_game(scene: &mut Scene, params: &mut AllParams) {
             .collapsible(false)
             .resizable(false)
             .show(egui_ctx, |ui| {
-                ui.add(
-                    Slider::new(&mut params.search_depth, 1..=15)
-                        .text("Difficulty level"),
-                );
+                ui.add(Slider::new(&mut params.search_depth, 1..=15).text("Difficulty level"));
                 ui.horizontal(|ui| {
                     ui.label("White checkers:");
-                    ui.radio_value(&mut params.is_ai_player[0], false, "Human");
-                    ui.radio_value(&mut params.is_ai_player[0], true, "Computer");
+                    ui.radio_value(&mut params.players[0], Player::Human, "Human");
+                    ui.radio_value(
+                        &mut params.players[0],
+                        Player::Computer(Bot::new()),
+                        "Computer",
+                    );
                 });
                 ui.horizontal(|ui| {
                     ui.label("Black checkers:");
-                    ui.radio_value(&mut params.is_ai_player[1], false, "Human");
-                    ui.radio_value(&mut params.is_ai_player[1], true, "Computer");
+                    ui.radio_value(&mut params.players[1], Player::Human, "Human");
+                    ui.radio_value(
+                        &mut params.players[1],
+                        Player::Computer(Bot::new()),
+                        "Computer",
+                    );
                 });
                 ui.vertical_centered_justified(|ui| {
                     if ui.small_button("Play!").clicked() {

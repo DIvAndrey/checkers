@@ -1,10 +1,10 @@
 use crate::game::{Game, Move};
 use std::collections::HashMap;
+use std::thread;
+use std::thread::JoinHandle;
 
 pub const INFINITY: i32 = 1_000_000_000;
 pub const HALF_OF_INFINITY: i32 = 500_000_000;
-// game: (score, alpha, beta, depth)
-static mut HASH_MAP: Option<HashMap<Game, (i32, i32, ValType)>> = None;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 enum ValType {
@@ -14,38 +14,53 @@ enum ValType {
     None,
 }
 
-impl Game {
-    fn search_v7(&self, depth: i32, mut alpha: i32, mut beta: i32) -> i32 {
+pub struct Bot {
+    // game: (score, depth, val_type)
+    pub hash_map: HashMap<Game, (i32, i32, ValType)>,
+    pub join: JoinHandle<Option<(Move, bool, i32)>>,
+    pub is_searching: bool,
+}
+
+impl Bot {
+    pub fn new() -> Bot {
+        Bot {
+            hash_map: HashMap::new(),
+            join: thread::spawn(|| None),
+            is_searching: true,
+        }
+    }
+}
+
+impl Bot {
+    fn search(&mut self, game: &Game, depth: i32, mut alpha: i32, mut beta: i32) -> i32 {
         let old_alpha = alpha;
-        let mut all_moves = self.get_moves_with_cutting();
+        let mut all_moves = game.get_moves_with_cutting();
         if depth <= 0 && all_moves.is_empty() {
-            return if self.current_player {
-                self.evaluate()
+            return if game.current_player {
+                game.evaluate()
             } else {
-                -self.evaluate()
+                -game.evaluate()
             };
         }
-        if self.current_player {
+        if game.current_player {
             unsafe {
-                if let Some(hash_map) = &HASH_MAP {
-                    if let Some(&(res, d1, val_type)) = hash_map.get(&self) {
-                        if d1 >= depth {
-                            match val_type {
-                                ValType::Exact => return res,
-                                ValType::Beta => {
-                                    alpha = alpha.max(res);
-                                    if alpha >= beta {
-                                        return alpha;
-                                    }
+                if let Some(&(res, d1, val_type)) = self.hash_map.get(&game) {
+                    if d1 >= depth {
+                        match val_type {
+                            ValType::Exact => return res,
+                            ValType::Beta => {
+                                alpha = alpha.max(res);
+                                if alpha >= beta {
+                                    return alpha;
                                 }
-                                ValType::Alpha => {
-                                    beta = beta.min(res);
-                                    if alpha >= beta {
-                                        return beta;
-                                    }
-                                }
-                                _ => {}
                             }
+                            ValType::Alpha => {
+                                beta = beta.min(res);
+                                if alpha >= beta {
+                                    return beta;
+                                }
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -54,21 +69,21 @@ impl Game {
         let mut is_cutting = true;
         if all_moves.is_empty() {
             // If can't cut
-            all_moves = self.get_moves_without_cutting();
+            all_moves = game.get_moves_without_cutting();
             is_cutting = false;
         }
         if all_moves.is_empty() {
             return -HALF_OF_INFINITY - depth * 100_000
-                + if self.current_player {
-                self.evaluate()
-            } else {
-                -self.evaluate()
-            };
+                + if game.current_player {
+                    game.evaluate()
+                } else {
+                    -game.evaluate()
+                };
         }
         let mut new_games = all_moves
             .into_iter()
             .map(|m| {
-                let mut game_copy = self.clone();
+                let mut game_copy = game.clone();
                 game_copy.make_move((m.clone(), is_cutting));
                 (m, game_copy)
             })
@@ -88,31 +103,32 @@ impl Game {
                 break;
             }
             game_copy.change_player();
-            let mut tmp = -game_copy.search_v7(depth - 1, -alpha - 1, -alpha);
+            let mut tmp = -self.search(&game_copy, depth - 1, -alpha - 1, -alpha);
             if tmp > alpha && tmp < beta {
-                tmp = -game_copy.search_v7(depth - 1, -beta, -tmp);
+                tmp = -self.search(&game_copy, depth - 1, -beta, -tmp);
             }
             score = score.max(tmp);
             alpha = alpha.max(score);
         }
-        if self.current_player {
+        if game.current_player {
             unsafe {
-                if let Some(hash_map) = &mut HASH_MAP {
-                    let curr_val = hash_map.get(&self);
-                    let curr_type = match curr_val {
-                        None => ValType::None,
-                        Some(val) => val.2,
-                    };
-                    if curr_val.is_none() || curr_val.unwrap().1 <= depth {
-                        if old_alpha < score && score < beta {
-                            hash_map.insert(self.clone(), (score, depth, ValType::Exact));
-                        } else if score >= beta {
-                            if curr_type != ValType::Exact || curr_val.unwrap().1 != depth {
-                                hash_map.insert(self.clone(), (score, depth, ValType::Beta));
-                            }
-                        } else if curr_type != ValType::Exact && curr_type != ValType::Beta {
-                            hash_map.insert(self.clone(), (score, depth, ValType::Alpha));
+                let curr_val = self.hash_map.get(&game);
+                let curr_type = match curr_val {
+                    None => ValType::None,
+                    Some(val) => val.2,
+                };
+                if curr_val.is_none() || curr_val.unwrap().1 <= depth {
+                    if old_alpha < score && score < beta {
+                        self.hash_map
+                            .insert(game.clone(), (score, depth, ValType::Exact));
+                    } else if score >= beta {
+                        if curr_type != ValType::Exact || curr_val.unwrap().1 != depth {
+                            self.hash_map
+                                .insert(game.clone(), (score, depth, ValType::Beta));
                         }
+                    } else if curr_type != ValType::Exact && curr_type != ValType::Beta {
+                        self.hash_map
+                            .insert(game.clone(), (score, depth, ValType::Alpha));
                     }
                 }
             }
@@ -120,13 +136,8 @@ impl Game {
         score
     }
 
-    pub fn choose_best_move_v7(&self, depth: i32) -> Option<(Move, bool, i32)> {
-        unsafe {
-            if HASH_MAP.is_none() {
-                HASH_MAP = Some(HashMap::new());
-            }
-        }
-        let (all_moves, is_cutting) = self.get_moves();
+    pub fn choose_best_move(&mut self, game: &Game, depth: i32) -> Option<(Move, bool, i32)> {
+        let (all_moves, is_cutting) = game.get_moves();
         let mut alpha = -INFINITY;
         let beta = INFINITY;
         let mut score = -INFINITY;
@@ -135,12 +146,12 @@ impl Game {
             if alpha >= beta {
                 break;
             }
-            let mut game_copy = self.clone();
+            let mut game_copy = game.clone();
             game_copy.make_move((curr_move.clone(), is_cutting));
             game_copy.change_player();
-            let mut tmp = -game_copy.search_v7(depth - 1, -alpha - 1, -alpha);
+            let mut tmp = -self.search(&game_copy, depth - 1, -alpha - 1, -alpha);
             if tmp > alpha && tmp < beta {
-                tmp = -game_copy.search_v7(depth - 1, -beta, -tmp);
+                tmp = -self.search(&game_copy, depth - 1, -beta, -tmp);
             }
             if tmp > score || best_move.is_none() {
                 score = tmp;
@@ -150,4 +161,23 @@ impl Game {
         }
         Some((best_move?, is_cutting, score))
     }
+
+    #[inline]
+    pub fn start_search(&mut self, game: Game, depth: i32) {
+        self.is_searching = true;
+        self.join = thread::spawn(|| self.choose_best_move(&game, depth))
+    }
+
+    #[inline]
+    pub fn is_search_ended(&self) -> bool {
+        self.join.is_finished()
+    }
 }
+
+impl PartialEq for Bot {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for Bot {}

@@ -10,10 +10,12 @@ mod useful_functions;
 mod visualizer;
 
 use crate::game::Game;
-use crate::visualizer::{draw_frame, AllParams, Scene, GameParams};
+use crate::visualizer::{draw_frame, AllParams, Scene, GameParams, Player};
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
 use std::collections::HashMap;
+use std::thread;
+use std::time::Duration;
 
 const WHITE_BYTES: &[u8] = include_bytes!("../data/white.png");
 const WHITE_QUEEN_BYTES: &[u8] = include_bytes!("../data/white_queen.png");
@@ -61,7 +63,7 @@ async fn main() {
         highlight_color: Color::from_rgba(42, 71, 173, 100),
         font: load_ttf_font_from_bytes(FONT_BYTES).expect("Не удалось загрузить шрифт"),
         history: Vec::new(),
-        is_ai_player: [false, true],
+        players: [Player::Human, Player::Human],
         search_depth: 12,
         first_frame: true,
     };
