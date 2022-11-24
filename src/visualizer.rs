@@ -1,4 +1,4 @@
-use crate::ai_v2::Bot;
+use crate::ai_v2::{Bot, ThreadBot};
 use crate::game::{Checker, Game, Move};
 use crate::useful_functions::{conv_1d_to_2d, conv_2d_to_1d};
 use egui_macroquad::egui;
@@ -6,6 +6,8 @@ use egui_macroquad::egui::{Align2, FontFamily, Pos2, Separator, Slider, Style, T
 use egui_macroquad::macroquad::prelude::*;
 use std::collections::{BTreeSet, HashMap};
 use std::mem::swap;
+use std::thread;
+use std::time::Duration;
 
 const UI_SCALE_COEFF: f32 = 1.0 / 300.0;
 
@@ -51,11 +53,16 @@ pub struct GameParams {
 }
 
 pub struct AllParams {
+    pub last_correct_game_state: Game,
     pub game_params: GameParams,
     pub history: Vec<GameParams>,
     pub players: [Player; 2],
+    pub static_analysis: Player,
+    pub static_analysis_depth_step: i32,
+    pub static_analysis_start_depth: i32,
+    pub static_analysis_depth: i32,
+    pub static_evaluation: i32,
     pub search_depth: i32,
-    pub first_frame: bool,
     pub white_texture: Texture2D,
     pub white_queen_texture: Texture2D,
     pub black_texture: Texture2D,
@@ -66,10 +73,29 @@ pub struct AllParams {
     pub font: Font,
 }
 
+impl AllParams {
+    pub fn complete_full_move(&mut self) {
+        self.game_params.selected_checker = None;
+        self.game_params.game.change_player();
+        self.static_analysis_depth = self.static_analysis_start_depth;
+        self.last_correct_game_state = self.game_params.game.clone();
+        self.game_params.move_n += 1;
+    }
+}
+
 #[derive(PartialEq, Eq)]
 pub enum Player {
     Human,
-    Computer(Bot),
+    Computer(ThreadBot),
+}
+
+impl Player {
+    pub fn recreate_bot(&mut self) {
+        match self {
+            Player::Human => {}
+            Player::Computer(bot) => *bot = ThreadBot::new(),
+        }
+    }
 }
 
 pub enum Scene {
@@ -88,20 +114,40 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     let cell_size = board_width / 8.0;
     let texture_draw_offset = cell_size * 0.02;
     let hint_circle_radius = cell_size / 2.0 * 0.4;
-    if let (true, true, Player::Computer(bot)) = (!params.first_frame, !params.game_params.end_of_game, &mut params.players[!params.game_params.game.current_player as usize])
-    {
+    // Static analysis
+    if let Player::Computer(bot) = &mut params.static_analysis {
         if bot.is_searching && bot.is_search_ended() {
             bot.is_searching = false;
-            let mut old_bot = Bot::new();
-            swap(bot, &mut old_bot);
-            if let Some((best_move, is_cutting, _)) = old_bot.join.join().unwrap() {
+            if let Some((_, _, mut score)) = bot.get_search_result() {
+                if !params.game_params.game.current_player {
+                    score = -score;
+                }
+                params.static_evaluation = score;
+                params.static_analysis_depth += params.static_analysis_depth_step;
+            }
+        }
+        if !bot.is_searching {
+            bot.start_search(
+                params.last_correct_game_state.clone(),
+                params.static_analysis_depth,
+            );
+        }
+    }
+    // Game
+    if let (true, Player::Computer(bot)) = (
+        !params.game_params.end_of_game,
+        &mut params.players[!params.game_params.game.current_player as usize],
+    ) {
+        if bot.is_searching && bot.is_search_ended() {
+            bot.is_searching = false;
+            if let Some((best_move, is_cutting, _)) = bot.get_search_result() {
                 params.game_params.full_current_move = best_move.clone();
                 params.game_params.game.make_move((best_move, is_cutting));
-                params.game_params.game.change_player();
-                params.game_params.all_moves_string = get_all_moves_string(&params.game_params.game);
-                params.game_params.move_n += 1;
+                params.complete_full_move();
+                params.game_params.all_moves_string =
+                    get_all_moves_string(&params.game_params.game);
             }
-        } else {
+        } else if !bot.is_searching {
             bot.start_search(params.game_params.game.clone(), params.search_depth);
         }
     } else if !params.game_params.end_of_game && is_mouse_button_pressed(MouseButton::Left) {
@@ -122,9 +168,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                     if cut_i == -1 {
                         params.game_params.game.make_pawn_move(from, to);
                         params.game_params.full_current_move = vec![(from, -1), (to, -1)];
-                        params.game_params.selected_checker = None;
-                        params.game_params.game.change_player();
-                        params.game_params.move_n += 1;
+                        params.complete_full_move();
                     } else {
                         if let Some((to, _)) = params.game_params.full_current_move.last() {
                             // if params.game_params.game.get_cuts_from_cell(*to).is_empty()
@@ -142,9 +186,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                         params.game_params.game.make_cutting_move(from, to, cut_i);
                         let new_cuts = params.game_params.game.get_cuts_from_cell(to);
                         if new_cuts.is_empty() {
-                            params.game_params.selected_checker = None;
-                            params.game_params.game.change_player();
-                            params.game_params.move_n += 1;
+                            params.complete_full_move();
                         } else {
                             params.game_params.selected_checker = Some(to);
                             for m in new_cuts {
@@ -179,7 +221,8 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
             }
         }
     }
-    params.first_frame = false;
+
+    // Drawing egui
     egui_macroquad::ui(|egui_ctx| {
         egui_ctx.set_pixels_per_point(min_res * UI_SCALE_COEFF);
         Window::new("Menu")
@@ -224,6 +267,25 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         }
     });
 
+    // Drawing macroquad
+    // Static analysis
+    let coeff = (params.static_evaluation as f32 / 6000.0).tanh() / 2.0 + 0.5;
+    let white_width = board_width * coeff;
+    let black_width = board_width * (1.0 - coeff);
+    draw_rectangle(x_offset, 0.0, white_width, y_offset, color_u8!(235, 235, 240, 255));
+    draw_rectangle(x_offset + white_width, 0.0, black_width, y_offset, color_u8!(50, 48, 49, 255));
+    draw_text_ex(
+        params.static_evaluation.to_string().as_str(),
+        x_offset,
+        y_offset,
+        TextParams {
+            font: params.font,
+            font_size: 14,
+            color: color_u8!(100, 100, 110, 255),
+            ..Default::default()
+        },
+    );
+    // Board
     for i in 0..64 {
         let x = i % 8;
         let y = i / 8;
@@ -331,12 +393,15 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
 }
 
 pub fn prepare_params_for_new_game(params: &mut AllParams) {
+    params.players[0].recreate_bot();
+    params.players[1].recreate_bot();
+    params.static_analysis_depth = params.static_analysis_start_depth;
     params.game_params.end_of_game = false;
     params.game_params.game = Game::new();
+    params.last_correct_game_state = Game::new();
     params.game_params.full_current_move.clear();
     params.game_params.available_cells_to_move.clear();
     params.game_params.all_moves_string = get_all_moves_string(&params.game_params.game);
-    params.first_frame = true;
     params.history.clear();
 }
 
@@ -360,7 +425,7 @@ pub async fn new_game(scene: &mut Scene, params: &mut AllParams) {
                     ui.radio_value(&mut params.players[0], Player::Human, "Human");
                     ui.radio_value(
                         &mut params.players[0],
-                        Player::Computer(Bot::new()),
+                        Player::Computer(ThreadBot::new()),
                         "Computer",
                     );
                 });
@@ -369,7 +434,7 @@ pub async fn new_game(scene: &mut Scene, params: &mut AllParams) {
                     ui.radio_value(&mut params.players[1], Player::Human, "Human");
                     ui.radio_value(
                         &mut params.players[1],
-                        Player::Computer(Bot::new()),
+                        Player::Computer(ThreadBot::new()),
                         "Computer",
                     );
                 });

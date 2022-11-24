@@ -16,6 +16,7 @@ use egui_macroquad::macroquad::prelude::*;
 use std::collections::HashMap;
 use std::thread;
 use std::time::Duration;
+use crate::ai_v2::ThreadBot;
 
 const WHITE_BYTES: &[u8] = include_bytes!("../data/white.png");
 const WHITE_QUEEN_BYTES: &[u8] = include_bytes!("../data/white_queen.png");
@@ -38,6 +39,7 @@ async fn main() {
     useful_functions::initialize();
     let game = Game::new();
     let mut game_params = AllParams {
+        last_correct_game_state: Game::new(),
         game_params: GameParams {
             game,
             available_cells_to_move: HashMap::new(),
@@ -64,8 +66,12 @@ async fn main() {
         font: load_ttf_font_from_bytes(FONT_BYTES).expect("Не удалось загрузить шрифт"),
         history: Vec::new(),
         players: [Player::Human, Player::Human],
+        static_analysis: Player::Computer(ThreadBot::new()),
+        static_analysis_depth_step: 1,
+        static_analysis_depth: 1,
+        static_evaluation: 0,
+        static_analysis_start_depth: 6,
         search_depth: 12,
-        first_frame: true,
     };
     let mut game_scene = Scene::NewGameCreation;
 

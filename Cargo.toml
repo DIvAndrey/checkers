@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 egui-macroquad = "0.12.0"
-tokio = {version = "1.21.2", features=["full"]}
+#crossbeam = "0.8.2"
 #fastrand = "1.8.0"

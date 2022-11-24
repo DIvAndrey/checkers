@@ -1,5 +1,7 @@
 use crate::game::{Game, Move};
 use std::collections::HashMap;
+use std::mem::swap;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -7,7 +9,7 @@ pub const INFINITY: i32 = 1_000_000_000;
 pub const HALF_OF_INFINITY: i32 = 500_000_000;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
-enum ValType {
+pub enum ValType {
     Exact,
     Beta,
     Alpha,
@@ -17,16 +19,12 @@ enum ValType {
 pub struct Bot {
     // game: (score, depth, val_type)
     pub hash_map: HashMap<Game, (i32, i32, ValType)>,
-    pub join: JoinHandle<Option<(Move, bool, i32)>>,
-    pub is_searching: bool,
 }
 
 impl Bot {
     pub fn new() -> Bot {
         Bot {
             hash_map: HashMap::new(),
-            join: thread::spawn(|| None),
-            is_searching: true,
         }
     }
 }
@@ -161,23 +159,49 @@ impl Bot {
         }
         Some((best_move?, is_cutting, score))
     }
+}
+
+pub struct ThreadBot {
+    pub bot: Arc<Mutex<Bot>>,
+    pub join: JoinHandle<Option<(Move, bool, i32)>>,
+    pub is_searching: bool,
+}
+
+impl ThreadBot {
+    pub fn new() -> ThreadBot {
+        ThreadBot {
+            bot: Arc::new(Mutex::new(Bot::new())),
+            join: thread::spawn(|| None),
+            is_searching: false,
+        }
+    }
 
     #[inline]
     pub fn start_search(&mut self, game: Game, depth: i32) {
         self.is_searching = true;
-        self.join = thread::spawn(|| self.choose_best_move(&game, depth))
+        let mut bot = self.bot.clone();
+        self.join = thread::spawn(move || bot.lock().unwrap().choose_best_move(&game, depth))
     }
 
     #[inline]
     pub fn is_search_ended(&self) -> bool {
         self.join.is_finished()
     }
+
+    #[inline]
+    pub fn get_search_result(&mut self) -> Option<(Move, bool, i32)> {
+        let mut new_thread = thread::spawn(|| None);
+        swap(&mut self.join, &mut new_thread);
+        new_thread.join().expect("Thread join error")
+    }
 }
 
-impl PartialEq for Bot {
+impl PartialEq for ThreadBot {
     fn eq(&self, _: &Self) -> bool {
         true
     }
 }
 
-impl Eq for Bot {}
+impl Eq for ThreadBot {}
+
+
