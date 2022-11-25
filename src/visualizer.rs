@@ -1,13 +1,10 @@
-use crate::ai_v2::{Bot, ThreadBot};
+use crate::ai_v2::ThreadBot;
 use crate::game::{Checker, Game, Move};
-use crate::useful_functions::{conv_1d_to_2d, conv_2d_to_1d};
+use crate::useful_functions::{conv_1d_to_2d, conv_2d_to_1d, sigmoid};
 use egui_macroquad::egui;
-use egui_macroquad::egui::{Align2, FontFamily, Pos2, Separator, Slider, Style, TextStyle, Window};
+use egui_macroquad::egui::{Align2, Pos2, Slider, Window};
 use egui_macroquad::macroquad::prelude::*;
 use std::collections::{BTreeSet, HashMap};
-use std::mem::swap;
-use std::thread;
-use std::time::Duration;
 
 const UI_SCALE_COEFF: f32 = 1.0 / 300.0;
 
@@ -32,14 +29,6 @@ fn get_all_moves_string(game: &Game) -> String {
         .join("\n")
 }
 
-fn get_pretty_score(real_score: i32) -> i32 {
-    if real_score > 0 {
-        (real_score + 500) / 1000
-    } else {
-        (real_score - 500) / 1000
-    }
-}
-
 #[derive(Clone)]
 pub struct GameParams {
     pub game: Game,
@@ -62,6 +51,7 @@ pub struct AllParams {
     pub static_analysis_start_depth: i32,
     pub static_analysis_depth: i32,
     pub static_evaluation: i32,
+    pub last_evaluated_move: i32,
     pub search_depth: i32,
     pub white_texture: Texture2D,
     pub white_queen_texture: Texture2D,
@@ -117,7 +107,6 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     // Static analysis
     if let Player::Computer(bot) = &mut params.static_analysis {
         if bot.is_searching && bot.is_search_ended() {
-            bot.is_searching = false;
             if let Some((_, _, mut score)) = bot.get_search_result() {
                 if !params.game_params.game.current_player {
                     score = -score;
@@ -126,7 +115,8 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 params.static_analysis_depth += params.static_analysis_depth_step;
             }
         }
-        if !bot.is_searching {
+        if !bot.is_searching || params.last_evaluated_move != params.game_params.move_n {
+            params.last_evaluated_move = params.game_params.move_n;
             bot.start_search(
                 params.last_correct_game_state.clone(),
                 params.static_analysis_depth,
@@ -269,7 +259,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
 
     // Drawing macroquad
     // Static analysis
-    let coeff = (params.static_evaluation as f32 / 6000.0).tanh() / 2.0 + 0.5;
+    let coeff = sigmoid(params.static_evaluation as f32 / 3000.0);
     let white_width = board_width * coeff;
     let black_width = board_width * (1.0 - coeff);
     draw_rectangle(x_offset, 0.0, white_width, y_offset, color_u8!(235, 235, 240, 255));
@@ -280,8 +270,8 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         y_offset,
         TextParams {
             font: params.font,
-            font_size: 14,
-            color: color_u8!(100, 100, 110, 255),
+            font_size: (min_res * 0.025) as u16,
+            color: color_u8!(150, 150, 160, 255),
             ..Default::default()
         },
     );
@@ -393,9 +383,11 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
 }
 
 pub fn prepare_params_for_new_game(params: &mut AllParams) {
+    params.last_evaluated_move = -1;
     params.players[0].recreate_bot();
     params.players[1].recreate_bot();
     params.static_analysis_depth = params.static_analysis_start_depth;
+    params.game_params.move_n = 0;
     params.game_params.end_of_game = false;
     params.game_params.game = Game::new();
     params.last_correct_game_state = Game::new();

@@ -14,8 +14,6 @@ use crate::visualizer::{draw_frame, AllParams, Scene, GameParams, Player};
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
 use std::collections::HashMap;
-use std::thread;
-use std::time::Duration;
 use crate::ai_v2::ThreadBot;
 
 const WHITE_BYTES: &[u8] = include_bytes!("../data/white.png");
@@ -60,18 +58,19 @@ async fn main() {
             BLACK_QUEEN_BYTES,
             Some(ImageFormat::Png),
         ),
-        board_white_color: Color::from_rgba(235, 236, 208, 255),
-        board_black_color: Color::from_rgba(119, 149, 86, 255),
-        highlight_color: Color::from_rgba(42, 71, 173, 100),
+        board_white_color: color_u8!(235, 236, 208, 255),
+        board_black_color: color_u8!(119, 149, 86, 255),
+        highlight_color: color_u8!(42, 71, 173, 100),
         font: load_ttf_font_from_bytes(FONT_BYTES).expect("Не удалось загрузить шрифт"),
         history: Vec::new(),
         players: [Player::Human, Player::Human],
         static_analysis: Player::Computer(ThreadBot::new()),
-        static_analysis_depth_step: 1,
+        static_analysis_depth_step: 2,
         static_analysis_depth: 1,
         static_evaluation: 0,
         static_analysis_start_depth: 6,
         search_depth: 12,
+        last_evaluated_move: -1,
     };
     let mut game_scene = Scene::NewGameCreation;
 
