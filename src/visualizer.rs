@@ -4,36 +4,15 @@ use crate::useful_functions::{conv_1d_to_2d, conv_2d_to_1d, sigmoid};
 use egui_macroquad::egui;
 use egui_macroquad::egui::{Align2, Pos2, Slider, Window};
 use egui_macroquad::macroquad::prelude::*;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 
 const UI_SCALE_COEFF: f32 = 1.0 / 300.0;
-
-fn get_all_moves_string(game: &Game) -> String {
-    let moves: Vec<Move> = game.get_moves().0.into_iter().collect();
-    let mut filtered = BTreeSet::new();
-    for m in moves {
-        filtered.insert((conv_1d_to_2d(m[0].0), conv_1d_to_2d(m[1].0)));
-    }
-    filtered
-        .into_iter()
-        .map(|(a, b)| {
-            format!(
-                "{}{} {}{}",
-                ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'][a.0],
-                8 - a.1,
-                ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'][b.0],
-                8 - b.1
-            )
-        })
-        .collect::<Vec<String>>()
-        .join("\n")
-}
 
 #[derive(Clone)]
 pub struct GameParams {
     pub game: Game,
+    pub last_correct_game_state: Game,
     pub selected_checker: Option<i8>,
-    pub all_moves_string: String,
     pub full_current_move: Vec<(i8, i8)>,
     pub white_ai_eval: i32,
     pub available_cells_to_move: HashMap<i8, i8>,
@@ -42,7 +21,6 @@ pub struct GameParams {
 }
 
 pub struct AllParams {
-    pub last_correct_game_state: Game,
     pub game_params: GameParams,
     pub history: Vec<GameParams>,
     pub players: [Player; 2],
@@ -64,12 +42,14 @@ pub struct AllParams {
 }
 
 impl AllParams {
+    #[inline(always)]
     pub fn complete_full_move(&mut self) {
         self.game_params.selected_checker = None;
         self.game_params.game.change_player();
         self.static_analysis_depth = self.static_analysis_start_depth;
-        self.last_correct_game_state = self.game_params.game.clone();
+        self.game_params.last_correct_game_state = self.game_params.game.clone();
         self.game_params.move_n += 1;
+        self.game_params.end_of_game = self.game_params.game.get_moves().0.is_empty();
     }
 }
 
@@ -104,6 +84,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     let cell_size = board_width / 8.0;
     let texture_draw_offset = cell_size * 0.02;
     let hint_circle_radius = cell_size / 2.0 * 0.4;
+    let board_letters_offset = min_res * 0.006;
     // Static analysis
     if let Player::Computer(bot) = &mut params.static_analysis {
         if bot.is_searching && bot.is_search_ended() {
@@ -118,7 +99,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         if !bot.is_searching || params.last_evaluated_move != params.game_params.move_n {
             params.last_evaluated_move = params.game_params.move_n;
             bot.start_search(
-                params.last_correct_game_state.clone(),
+                params.game_params.last_correct_game_state.clone(),
                 params.static_analysis_depth,
             );
         }
@@ -134,8 +115,6 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 params.game_params.full_current_move = best_move.clone();
                 params.game_params.game.make_move((best_move, is_cutting));
                 params.complete_full_move();
-                params.game_params.all_moves_string =
-                    get_all_moves_string(&params.game_params.game);
             }
         } else if !bot.is_searching {
             bot.start_search(params.game_params.game.clone(), params.search_depth);
@@ -187,8 +166,6 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                             }
                         }
                     }
-                    params.game_params.all_moves_string =
-                        get_all_moves_string(&params.game_params.game);
                 } else {
                     // Selecting move
                     let moves: Vec<Move> = params
@@ -229,12 +206,12 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 }
                 if !params.history.is_empty() {
                     if ui.button("Back ⬅").clicked() {
+                        params.complete_full_move();
                         params.game_params = params.history.pop().unwrap();
                     }
                 }
             });
-        if params.game_params.all_moves_string.is_empty() {
-            params.game_params.end_of_game = true;
+        if params.game_params.end_of_game {
             let winner = if params.game_params.game.current_player {
                 "Black"
             } else {
@@ -259,18 +236,46 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
 
     // Drawing macroquad
     // Static analysis
-    let coeff = sigmoid(params.static_evaluation as f32 / 3000.0);
+    let coeff = sigmoid(params.static_evaluation as f32 / 300.0);
     let white_width = board_width * coeff;
     let black_width = board_width * (1.0 - coeff);
-    draw_rectangle(x_offset, 0.0, white_width, y_offset, color_u8!(235, 235, 240, 255));
-    draw_rectangle(x_offset + white_width, 0.0, black_width, y_offset, color_u8!(50, 48, 49, 255));
-    draw_text_ex(
-        params.static_evaluation.to_string().as_str(),
+    // White bar
+    draw_rectangle(
         x_offset,
+        0.0,
+        white_width,
         y_offset,
+        color_u8!(235, 235, 240, 255),
+    );
+    // Black bar
+    draw_rectangle(
+        x_offset + white_width,
+        0.0,
+        black_width,
+        y_offset,
+        color_u8!(50, 48, 49, 255),
+    );
+    // Evaluation text
+    let font_size = y_offset * 0.7;
+    let eval = params.static_evaluation as f64 / 100.0;
+    let text = if eval > 100_000.0 {
+        "+∞".to_string()
+    } else if eval < -100_000.0 {
+        "-∞".to_string()
+    } else if eval > 0.0 {
+        format!("+{}", eval)
+    } else if eval < 0.0 {
+        eval.to_string()
+    } else {
+        "0".to_string()
+    };
+    draw_text_ex(
+        text.to_string().as_str(),
+        x_offset + board_width * 0.005,
+        y_offset - (y_offset - font_size - y_offset * 0.05) * 0.5,
         TextParams {
             font: params.font,
-            font_size: (min_res * 0.025) as u16,
+            font_size: font_size as u16,
             color: color_u8!(150, 150, 160, 255),
             ..Default::default()
         },
@@ -287,14 +292,15 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
             (params.board_black_color, params.board_white_color)
         };
         draw_rectangle(real_x1, real_y1, cell_size, cell_size, color1);
+        let font_size = min_res * 0.02;
         if x == 0 {
             draw_text_ex(
                 (8 - y).to_string().as_str(),
-                real_x1 + 0.005 * min_res,
-                real_y1 + 17.0 + 0.005 * min_res,
+                real_x1 + board_letters_offset,
+                real_y1 + font_size + board_letters_offset,
                 TextParams {
                     font: params.font,
-                    font_size: 14,
+                    font_size: font_size as u16,
                     color: color2,
                     ..Default::default()
                 },
@@ -305,11 +311,11 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'][x]
                     .to_string()
                     .as_str(),
-                real_x1 + cell_size - 15.0 - 0.005 * min_res,
-                real_y1 + cell_size - 2.0 - 0.005 * min_res,
+                real_x1 + cell_size - font_size - board_letters_offset,
+                real_y1 + cell_size - board_letters_offset,
                 TextParams {
                     font: params.font,
-                    font_size: 14,
+                    font_size: font_size as u16,
                     color: color2,
                     ..Default::default()
                 },
@@ -390,10 +396,9 @@ pub fn prepare_params_for_new_game(params: &mut AllParams) {
     params.game_params.move_n = 0;
     params.game_params.end_of_game = false;
     params.game_params.game = Game::new();
-    params.last_correct_game_state = Game::new();
+    params.game_params.last_correct_game_state = Game::new();
     params.game_params.full_current_move.clear();
     params.game_params.available_cells_to_move.clear();
-    params.game_params.all_moves_string = get_all_moves_string(&params.game_params.game);
     params.history.clear();
 }
 

@@ -96,22 +96,22 @@ impl Game {
         // }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_empty_cell(&self, i: i8) -> bool {
         return get_bit(self.not_empty, i) == 0;
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_white_checker(&self, i: i8) -> bool {
         return get_bit(self.is_white, i) == 1;
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_queen_checker(&self, i: i8) -> bool {
         return get_bit(self.is_queen, i) == 1;
     }
 
-    #[inline]
+    #[inline(always)]
     fn clear_cell(&mut self, i: i8) {
         let mask = 1 << i;
         self.not_empty ^= mask;
@@ -119,12 +119,12 @@ impl Game {
         self.is_queen ^= self.is_queen & mask;
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn change_player(&mut self) {
         self.current_player = !self.current_player;
     }
 
-    #[inline]
+    #[inline(always)]
     fn neighbours_count(&self, my: u64) -> i32 {
         (((my << 7) & EXCLUDE_LEFT_SIDE & my).count_ones()
             + ((my << 9) & EXCLUDE_RIGHT_SIDE & my).count_ones()
@@ -132,7 +132,7 @@ impl Game {
             + ((my >> 7) & EXCLUDE_RIGHT_SIDE & my).count_ones()) as i32
     }
 
-    #[inline]
+    #[inline(always)]
     fn get_forward_moves_score(&self, player: bool, mut my: u64) -> i32 {
         let mask = 0b1111_1111;
         if !player {
@@ -145,15 +145,15 @@ impl Game {
         res as i32
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn evaluate_for(&self, player: bool, my: u64, _enemy: u64) -> i32 {
-        let mut res = (my.count_ones() * 1000 + (my & self.is_queen).count_ones() * 2000) as i32;
+        let mut res = (my.count_ones() * 100 + (my & self.is_queen).count_ones() * 200) as i32;
         res += self.neighbours_count(my);
         res += self.get_forward_moves_score(player, my);
         res
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn evaluate(&self) -> i32 {
         let (white, black) = (
             self.is_white & self.not_empty,
@@ -162,7 +162,6 @@ impl Game {
         self.evaluate_for(true, white, black) - self.evaluate_for(false, black, white)
     }
 
-    #[inline]
     pub fn make_pawn_move(&mut self, from: i8, to: i8) {
         // Copy data to the new cell
         self.not_empty ^= 1 << to;
@@ -195,32 +194,31 @@ impl Game {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn get_pawns(&self) -> u64 {
         !self.is_queen & self.not_empty
     }
 
-    #[inline]
+    #[inline(always)]
     fn get_pawns_left_up_cuts_mask(&self, current: u64, enemy: u64) -> u64 {
         current & (enemy >> 9) & (!self.not_empty >> 18) & EXCLUDE_LEFT_SIDE2
     }
 
-    #[inline]
+    #[inline(always)]
     fn get_pawns_right_up_cuts_mask(&self, current: u64, enemy: u64) -> u64 {
         current & (enemy >> 7) & (!self.not_empty >> 14) & EXCLUDE_RIGHT_SIDE2
     }
 
-    #[inline]
+    #[inline(always)]
     fn get_pawns_left_down_cuts_mask(&self, current: u64, enemy: u64) -> u64 {
         current & (enemy << 7) & (!self.not_empty << 14) & EXCLUDE_LEFT_SIDE2
     }
 
-    #[inline]
+    #[inline(always)]
     fn get_pawns_right_down_cuts_mask(&self, current: u64, enemy: u64) -> u64 {
         current & (enemy << 9) & (!self.not_empty << 18) & EXCLUDE_RIGHT_SIDE2
     }
 
-    #[inline]
     pub fn get_cuts_from_cell_rev(&self, i: i8) -> Vec<Move> {
         let enemy = self.not_empty
             & if self.current_player {
@@ -332,7 +330,7 @@ impl Game {
         new_moves
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_cuts_from_cell(&self, i: i8) -> Vec<Move> {
         let mut res = self.get_cuts_from_cell_rev(i);
         res.iter_mut().for_each(|m| m.reverse());
@@ -499,6 +497,7 @@ impl Game {
     }
 
     // bool value means whether player can cut
+    #[inline(always)]
     pub fn get_moves(&self) -> (Vec<Move>, bool) {
         let mut moves_with_cutting = self.get_moves_with_cutting();
         moves_with_cutting.sort();

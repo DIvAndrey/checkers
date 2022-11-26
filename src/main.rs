@@ -9,12 +9,12 @@ mod game;
 mod useful_functions;
 mod visualizer;
 
+use crate::ai_v2::ThreadBot;
 use crate::game::Game;
-use crate::visualizer::{draw_frame, AllParams, Scene, GameParams, Player};
+use crate::visualizer::{draw_frame, AllParams, GameParams, Player, Scene};
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
 use std::collections::HashMap;
-use crate::ai_v2::ThreadBot;
 
 const WHITE_BYTES: &[u8] = include_bytes!("../data/white.png");
 const WHITE_QUEEN_BYTES: &[u8] = include_bytes!("../data/white_queen.png");
@@ -37,12 +37,11 @@ async fn main() {
     useful_functions::initialize();
     let game = Game::new();
     let mut game_params = AllParams {
-        last_correct_game_state: Game::new(),
         game_params: GameParams {
             game,
+            last_correct_game_state: Game::new(),
             available_cells_to_move: HashMap::new(),
             selected_checker: None,
-            all_moves_string: "".to_string(),
             full_current_move: vec![],
             white_ai_eval: 0,
             end_of_game: false,
@@ -73,7 +72,6 @@ async fn main() {
         last_evaluated_move: -1,
     };
     let mut game_scene = Scene::NewGameCreation;
-
     // 13 - 67. 6.4720618, time per move: 0.09659793731343283
     // 14 - 69. 27.528797, time per move: 0.39896807246376814
 
