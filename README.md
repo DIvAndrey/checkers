@@ -2,7 +2,7 @@
 Pure Rust russian checkers. Uses NegaScout search algorithm, hash tables and bitboard technique.
 
 
-Main menu
+Menu
 
 ![plot](main_menu.png)
 
