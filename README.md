@@ -4,3 +4,4 @@ Pure Rust russian checkers. Uses NegaScout search algorithm, hash tables and bit
 
 Screenshots:
 
+![plot](./image.png)
