@@ -1,6 +1,6 @@
 use crate::useful_functions::*;
 use std::fmt::{Display, Formatter};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 #[derive(Clone)]
 pub enum Checker {
