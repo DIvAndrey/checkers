@@ -2,14 +2,12 @@
 
 extern crate core;
 
-mod ai;
-mod ai_v2;
-mod dumb_ai;
+mod bot;
 mod game;
 mod useful_functions;
 mod visualizer;
 
-use crate::ai_v2::ThreadBot;
+use crate::bot::ThreadBot;
 use crate::game::Game;
 use crate::visualizer::{draw_frame, AllParams, GameParams, Player, Scene};
 use egui_macroquad::macroquad;
@@ -24,7 +22,7 @@ const FONT_BYTES: &[u8] = include_bytes!("../data/font.ttf");
 
 fn window_conf() -> Conf {
     Conf {
-        window_title: "Checkers".to_owned(),
+        window_title: "Checkers".to_string(),
         window_width: 1350,
         window_height: 720,
         high_dpi: true,
@@ -60,6 +58,9 @@ async fn main() {
         board_white_color: color_u8!(235, 236, 208, 255),
         board_black_color: color_u8!(119, 149, 86, 255),
         highlight_color: color_u8!(42, 71, 173, 100),
+        eval_bar_white: color_u8!(235, 235, 240, 255),
+        eval_bar_black: color_u8!(50, 48, 49, 255),
+        eval_bar_gray: color_u8!(150, 150, 160, 255),
         font: load_ttf_font_from_bytes(FONT_BYTES).expect("Не удалось загрузить шрифт"),
         history: Vec::new(),
         players: [Player::Human, Player::Human],
@@ -72,8 +73,6 @@ async fn main() {
         last_evaluated_move: -1,
     };
     let mut game_scene = Scene::NewGameCreation;
-    // 13 - 67. 6.4720618, time per move: 0.09659793731343283
-    // 14 - 69. 27.528797, time per move: 0.39896807246376814
 
     for _ in 0.. {
         draw_frame(&mut game_scene, &mut game_params).await;

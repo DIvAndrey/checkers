@@ -31,7 +31,7 @@ impl Display for Checker {
 
 pub type Move = Vec<(i8, i8)>;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Game {
     // Bitmasks for game field. If cell is empty, all bits must be equal to 0.
     pub not_empty: u64,
@@ -40,33 +40,6 @@ pub struct Game {
     // true if white, false if black
     pub current_player: bool,
 }
-
-impl Hash for Game {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.not_empty);
-        state.write_u64(self.is_white);
-        state.write_u64(self.is_queen);
-        state.write_u8(self.current_player as u8);
-    }
-}
-
-impl PartialEq for Game {
-    fn eq(&self, other: &Self) -> bool {
-        (
-            self.not_empty,
-            self.is_white,
-            self.is_queen,
-            self.current_player,
-        ) == (
-            other.not_empty,
-            other.is_white,
-            other.is_queen,
-            other.current_player,
-        )
-    }
-}
-
-impl Eq for Game {}
 
 impl Game {
     pub fn new() -> Game {
@@ -176,12 +149,14 @@ impl Game {
         }
     }
 
+    #[inline(always)]
     pub fn make_cutting_move(&mut self, from: i8, to: i8, cut_i: i8) {
         self.make_pawn_move(from, to);
         // Clear the cell with felled checker
         self.clear_cell(cut_i);
     }
 
+    #[inline(always)]
     pub fn make_move(&mut self, mov: (Move, bool)) {
         let (mov, is_cutting) = mov;
         if is_cutting {
@@ -227,7 +202,6 @@ impl Game {
                 self.is_white
             };
         let cell_mask = 1 << i;
-//        let column = i & 0b111; // Current column number (from the end)
         let mut moves = Vec::new();
         if self.is_queen & cell_mask == 0 {
             if self.get_pawns_left_up_cuts_mask(cell_mask, enemy) != 0 {
@@ -336,21 +310,6 @@ impl Game {
         res.iter_mut().for_each(|m| m.reverse());
         res
     }
-
-    // pub fn get_moves_with_cutting(&self) -> Vec<Move> {
-    //     let mut moves = Vec::new();
-    //     // i is current cell number
-    //     for i in 0..64 {
-    //         if self.is_empty_cell(i) || self.is_white_checker(i) != self.current_player {
-    //             continue;
-    //         }
-    //         moves.extend(self.get_cuts_from_cell(i));
-    //     }
-    //     moves
-    // }
-
-    //  left: `[[(44, -1), (30, 37)], [(46, -1), (28, 37)]]`,
-    //  right: `[[(44, -1), (30, 37), (12, 21)], [(46, -1), (28, 37)]]`
 
     pub fn get_moves_with_cutting(&self) -> Vec<Move> {
         let is_mine = if self.current_player {
@@ -501,34 +460,11 @@ impl Game {
     pub fn get_moves(&self) -> (Vec<Move>, bool) {
         let mut moves_with_cutting = self.get_moves_with_cutting();
         moves_with_cutting.sort();
-        // assert_eq!(moves_with_cutting, moves2);
         if !moves_with_cutting.is_empty() {
             return (moves_with_cutting, true);
         }
         (self.get_moves_without_cutting(), false)
     }
-
-//     pub fn make_random_move(&mut self) -> Option<usize> {
-//         let (mut all_moves, is_cutting) = self.get_moves();
-//         if all_moves.is_empty() {
-//             return None;
-//         }
-//         let i = fastrand::usize(..all_moves.len());
-//         // Getting move from Vec `all_moves`
-//         let rnd_move = all_moves[i].clone();
-//         self.make_move((rnd_move, is_cutting));
-//         Some(i)
-//     }
-//
-//    pub fn get_move_i(&self, mov: &Move) -> usize {
-//        let (all_moves, _) = self.get_moves();
-//        all_moves
-//            .into_iter()
-//            .enumerate()
-//            .find(|(_, m)| m == mov)
-//            .unwrap()
-//            .0
-//    }
 
     pub fn get_data(&self) -> Vec<Vec<Checker>> {
         let mut result = vec![];

@@ -1,4 +1,4 @@
-use crate::ai_v2::ThreadBot;
+use crate::bot::{INFINITY, ThreadBot};
 use crate::game::{Checker, Game, Move};
 use crate::useful_functions::{conv_1d_to_2d, conv_2d_to_1d, sigmoid};
 use egui_macroquad::egui;
@@ -38,6 +38,9 @@ pub struct AllParams {
     pub board_white_color: Color,
     pub board_black_color: Color,
     pub highlight_color: Color,
+    pub eval_bar_white: Color,
+    pub eval_bar_black: Color,
+    pub eval_bar_gray: Color,
     pub font: Font,
 }
 
@@ -94,6 +97,10 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 }
                 params.static_evaluation = score;
                 params.static_analysis_depth += params.static_analysis_depth_step;
+            } else if params.game_params.game.current_player {
+                params.static_evaluation = -INFINITY;
+            } else {
+                params.static_evaluation = INFINITY;
             }
         }
         if !bot.is_searching || params.last_evaluated_move != params.game_params.move_n {
@@ -115,6 +122,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 params.game_params.full_current_move = best_move.clone();
                 params.game_params.game.make_move((best_move, is_cutting));
                 params.complete_full_move();
+                println!("{}. {}", params.game_params.move_n, get_time());
             }
         } else if !bot.is_searching {
             bot.start_search(params.game_params.game.clone(), params.search_depth);
@@ -245,7 +253,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         0.0,
         white_width,
         y_offset,
-        color_u8!(235, 235, 240, 255),
+        params.eval_bar_white,
     );
     // Black bar
     draw_rectangle(
@@ -253,7 +261,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         0.0,
         black_width,
         y_offset,
-        color_u8!(50, 48, 49, 255),
+        params.eval_bar_black,
     );
     // Evaluation text
     let font_size = y_offset * 0.7;
@@ -276,7 +284,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         TextParams {
             font: params.font,
             font_size: font_size as u16,
-            color: color_u8!(150, 150, 160, 255),
+            color: params.eval_bar_gray,
             ..Default::default()
         },
     );
