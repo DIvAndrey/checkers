@@ -44,6 +44,10 @@ impl Bot {
         if depth >= 1 && rx.try_recv().is_ok() {
             return None;
         }
+        // Clearing hashmap if its size is too big.
+        if self.hash_map.len() > 50_000_000 {
+            self.hash_map.clear()
+        }
         let old_alpha = alpha;
         let mut all_moves = game.get_moves_with_cutting();
         if depth <= 0 && all_moves.is_empty() {
