@@ -8,11 +8,9 @@ mod useful_functions;
 mod visualizer;
 
 use crate::bot::ThreadBot;
-use crate::game::Game;
 use crate::visualizer::{draw_frame, AllParams, GameParams, Player, Scene};
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
-use std::collections::HashMap;
 
 const WHITE_BYTES: &[u8] = include_bytes!("../data/white.png");
 const WHITE_QUEEN_BYTES: &[u8] = include_bytes!("../data/white_queen.png");
@@ -33,18 +31,8 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     useful_functions::initialize();
-    let game = Game::new();
     let mut game_params = AllParams {
-        game_params: GameParams {
-            game,
-            last_correct_game_state: Game::new(),
-            available_cells_to_move: HashMap::new(),
-            selected_checker: None,
-            full_current_move: vec![],
-            white_ai_eval: 0,
-            end_of_game: false,
-            move_n: 0,
-        },
+        game_params: GameParams::default(),
         white_texture: Texture2D::from_file_with_format(WHITE_BYTES, Some(ImageFormat::Png)),
         white_queen_texture: Texture2D::from_file_with_format(
             WHITE_QUEEN_BYTES,
@@ -61,6 +49,7 @@ async fn main() {
         eval_bar_white: color_u8!(235, 235, 240, 255),
         eval_bar_black: color_u8!(50, 48, 49, 255),
         eval_bar_gray: color_u8!(150, 150, 160, 255),
+        hint_color: color_u8!(255, 201, 14, 100),
         font: load_ttf_font_from_bytes(FONT_BYTES).expect("Не удалось загрузить шрифт"),
         history: Vec::new(),
         players: [Player::Human, Player::Human],
@@ -71,6 +60,8 @@ async fn main() {
         static_analysis_start_depth: 6,
         search_depth: 12,
         last_evaluated_move: -1,
+        need_hint: false,
+        hint: Default::default(),
     };
     let mut game_scene = Scene::NewGameCreation;
 

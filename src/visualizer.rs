@@ -4,7 +4,7 @@ use crate::useful_functions::{conv_1d_to_2d, conv_2d_to_1d, sigmoid};
 use egui_macroquad::egui;
 use egui_macroquad::egui::{Align2, Pos2, Slider, Window};
 use egui_macroquad::macroquad::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 const UI_SCALE_COEFF: f32 = 1.0 / 300.0;
 
@@ -14,10 +14,33 @@ pub struct GameParams {
     pub last_correct_game_state: Game,
     pub selected_checker: Option<i8>,
     pub full_current_move: Vec<(i8, i8)>,
+    pub full_current_move_hash_set: HashSet<i8>,
     pub white_ai_eval: i32,
     pub available_cells_to_move: HashMap<i8, i8>,
     pub end_of_game: bool,
     pub move_n: i32,
+}
+
+impl Default for GameParams {
+    fn default() -> Self {
+        Self {
+            game: Game::new(),
+            last_correct_game_state: Game::new(),
+            selected_checker: None,
+            full_current_move: vec![],
+            full_current_move_hash_set: Default::default(),
+            white_ai_eval: 0,
+            available_cells_to_move: Default::default(),
+            end_of_game: false,
+            move_n: 0,
+        }
+    }
+}
+
+impl GameParams {
+    fn update_current_move_hash_set(&mut self) {
+        self.full_current_move_hash_set = HashSet::from_iter(self.full_current_move.iter().map(|x| x.0));
+    }
 }
 
 pub struct AllParams {
@@ -31,6 +54,8 @@ pub struct AllParams {
     pub static_evaluation: i32,
     pub last_evaluated_move: i32,
     pub search_depth: i32,
+    pub need_hint: bool,
+    pub hint: HashSet<i8>,
     pub white_texture: Texture2D,
     pub white_queen_texture: Texture2D,
     pub black_texture: Texture2D,
@@ -38,6 +63,7 @@ pub struct AllParams {
     pub board_white_color: Color,
     pub board_black_color: Color,
     pub highlight_color: Color,
+    pub hint_color: Color,
     pub eval_bar_white: Color,
     pub eval_bar_black: Color,
     pub eval_bar_gray: Color,
@@ -53,6 +79,8 @@ impl AllParams {
         self.game_params.last_correct_game_state = self.game_params.game.clone();
         self.game_params.move_n += 1;
         self.game_params.end_of_game = self.game_params.game.get_moves().0.is_empty();
+        self.need_hint = false;
+        self.hint.clear();
     }
 }
 
@@ -91,7 +119,8 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     // Static analysis
     if let Player::Computer(bot) = &mut params.static_analysis {
         if bot.is_searching && bot.is_search_ended() {
-            if let Some((_, _, mut score)) = bot.get_search_result() {
+            if let Some((hint, _, mut score)) = bot.get_search_result() {
+                params.hint = HashSet::from_iter(hint.into_iter().map(|x| x.0));
                 if !params.game_params.game.current_player {
                     score = -score;
                 }
@@ -116,18 +145,21 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         !params.game_params.end_of_game,
         &mut params.players[!params.game_params.game.current_player as usize],
     ) {
+        // Bot move
         if bot.is_searching && bot.is_search_ended() {
             bot.is_searching = false;
             if let Some((best_move, is_cutting, _)) = bot.get_search_result() {
                 params.game_params.full_current_move = best_move.clone();
                 params.game_params.game.make_move((best_move, is_cutting));
                 params.complete_full_move();
+                params.game_params.update_current_move_hash_set();
                 println!("{}. {}", params.game_params.move_n, get_time());
             }
         } else if !bot.is_searching {
             bot.start_search(params.game_params.game.clone(), params.search_depth);
         }
     } else if !params.game_params.end_of_game && is_mouse_button_pressed(MouseButton::Left) {
+        // Player move
         let (mouse_x, mouse_y) = mouse_position();
         if mouse_x >= x_offset && mouse_y >= y_offset {
             let x = ((mouse_x - x_offset) / cell_size) as usize;
@@ -193,6 +225,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                     }
                     params.game_params.selected_checker = Some(conv_2d_to_1d(x, y));
                 }
+                params.game_params.update_current_move_hash_set();
             }
         }
     }
@@ -211,6 +244,9 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 if ui.button("New game ↺").clicked() {
                     *scene = Scene::NewGameCreation;
                     return;
+                }
+                if ui.button("Hint 💡").clicked() {
+                    params.need_hint = !params.need_hint;
                 }
                 if !params.history.is_empty() {
                     if ui.button("Back ⬅").clicked() {
@@ -329,12 +365,10 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 },
             );
         }
+        let as_flat = 63 - i as i8;
         if params
             .game_params
-            .full_current_move
-            .iter()
-            .find(|(x, _)| *x == 63 - i as i8)
-            .is_some()
+            .full_current_move_hash_set.contains(&as_flat)
         {
             draw_rectangle(
                 real_x1,
@@ -342,6 +376,15 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 cell_size,
                 cell_size,
                 params.highlight_color,
+            );
+        }
+        if params.need_hint && params.hint.contains(&as_flat) {
+            draw_rectangle(
+                real_x1,
+                real_y1,
+                cell_size,
+                cell_size,
+                params.hint_color,
             );
         }
         if params

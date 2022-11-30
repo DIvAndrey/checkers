@@ -44,7 +44,7 @@ impl Bot {
         if depth >= 1 && rx.try_recv().is_ok() {
             return None;
         }
-        // Clearing hashmap if its size is too big.
+        // Clearing the hashmap if its size is too large.
         if self.hash_map.len() > 50_000_000 {
             self.hash_map.clear()
         }
