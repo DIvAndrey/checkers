@@ -450,6 +450,8 @@ pub fn prepare_params_for_new_game(params: &mut AllParams) {
     params.game_params.last_correct_game_state = Game::new();
     params.game_params.full_current_move.clear();
     params.game_params.available_cells_to_move.clear();
+    params.game_params.selected_checker = None;
+    params.game_params.full_current_move_hash_set.clear();
     params.history.clear();
 }
 
