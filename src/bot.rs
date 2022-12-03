@@ -20,12 +20,14 @@ pub enum ValType {
 pub struct Bot {
     // game: (score, depth, val_type)
     pub hash_map: FxHashMap<Game, (i32, i32, ValType)>,
+    pub search_depth: i32,
 }
 
 impl Bot {
-    pub fn new() -> Bot {
+    pub fn new(search_depth: i32) -> Bot {
         Bot {
             hash_map: FxHashMap::default(),
+            search_depth,
         }
     }
 }
@@ -182,9 +184,9 @@ pub struct ThreadBot {
 }
 
 impl ThreadBot {
-    pub fn new() -> ThreadBot {
+    pub fn new(search_depth: i32) -> ThreadBot {
         ThreadBot {
-            bot: Arc::new(Mutex::new(Bot::new())),
+            bot: Arc::new(Mutex::new(Bot::new(search_depth))),
             join: thread::spawn(|| None),
             is_searching: false,
             tx: mpsc::channel().0,

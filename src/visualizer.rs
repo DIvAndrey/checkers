@@ -1,4 +1,4 @@
-use crate::bot::{INFINITY, ThreadBot};
+use crate::bot::{ThreadBot, INFINITY};
 use crate::game::{Checker, Game, Move};
 use crate::useful_functions::{conv_1d_to_2d, conv_2d_to_1d, sigmoid};
 use egui_macroquad::egui;
@@ -39,7 +39,8 @@ impl Default for GameParams {
 
 impl GameParams {
     fn update_current_move_hash_set(&mut self) {
-        self.full_current_move_hash_set = HashSet::from_iter(self.full_current_move.iter().map(|x| x.0));
+        self.full_current_move_hash_set =
+            HashSet::from_iter(self.full_current_move.iter().map(|x| x.0));
     }
 }
 
@@ -56,6 +57,8 @@ pub struct AllParams {
     pub search_depth: i32,
     pub need_hint: bool,
     pub hint: HashSet<i8>,
+    pub delay_between_moves: f32,
+    pub elapsed_time: f32,
     pub white_texture: Texture2D,
     pub white_queen_texture: Texture2D,
     pub black_texture: Texture2D,
@@ -81,6 +84,7 @@ impl AllParams {
         self.game_params.end_of_game = self.game_params.game.get_moves().0.is_empty();
         self.need_hint = false;
         self.hint.clear();
+        self.elapsed_time = 0.0;
     }
 }
 
@@ -94,7 +98,10 @@ impl Player {
     pub fn recreate_bot(&mut self) {
         match self {
             Player::Human => {}
-            Player::Computer(bot) => *bot = ThreadBot::new(),
+            Player::Computer(bot) => {
+                let old_depth = bot.bot.lock().unwrap().search_depth;
+                *bot = ThreadBot::new(old_depth);
+            }
         }
     }
 }
@@ -147,17 +154,20 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     ) {
         // Bot move
         if bot.is_searching && bot.is_search_ended() {
-            bot.is_searching = false;
-            if let Some((best_move, is_cutting, _)) = bot.get_search_result() {
-                params.game_params.full_current_move = best_move.clone();
-                params.game_params.game.make_move((best_move, is_cutting));
-                params.complete_full_move();
-                params.game_params.update_current_move_hash_set();
-                println!("{}. {}", params.game_params.move_n, get_time());
+            if params.elapsed_time >= params.delay_between_moves {
+                bot.is_searching = false;
+                if let Some((best_move, is_cutting, _)) = bot.get_search_result() {
+                    params.game_params.full_current_move = best_move.clone();
+                    params.game_params.game.make_move((best_move, is_cutting));
+                    params.complete_full_move();
+                    params.game_params.update_current_move_hash_set();
+                    println!("{}. {}", params.game_params.move_n, get_time());
+                }
             }
         } else if !bot.is_searching {
             bot.start_search(params.game_params.game.clone(), params.search_depth);
         }
+        params.elapsed_time += get_frame_time();
     } else if !params.game_params.end_of_game && is_mouse_button_pressed(MouseButton::Left) {
         // Player move
         let (mouse_x, mouse_y) = mouse_position();
@@ -180,7 +190,6 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                         params.complete_full_move();
                     } else {
                         if let Some((to, _)) = params.game_params.full_current_move.last() {
-                            // if params.game_params.game.get_cuts_from_cell(*to).is_empty()
                             if !params.game_params.game.is_empty_cell(*to)
                                 && params.game_params.game.is_white_checker(*to)
                                     != params.game_params.game.current_player
@@ -237,19 +246,28 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
             .default_pos(Pos2::new(5.0, 30.0))
             .resizable(false)
             .show(egui_ctx, |ui| {
-                if ui.button("Restart ↩").clicked() {
+                ui.label("Delay between moves (sec)");
+                let size = ui
+                    .add(Slider::new(&mut params.delay_between_moves, 0.0..=2.0))
+                    .rect
+                    .size();
+                if ui.add_sized(size, egui::Button::new("Restart ↩")).clicked() {
                     prepare_params_for_new_game(params);
                     return;
                 }
-                if ui.button("New game ↺").clicked() {
+                if ui
+                    .add_sized(size, egui::Button::new("New game ↺"))
+                    .clicked()
+                {
                     *scene = Scene::NewGameCreation;
                     return;
                 }
-                if ui.button("Hint 💡").clicked() {
+                if ui.add_sized(size, egui::Button::new("Hint 💡")).clicked() {
                     params.need_hint = !params.need_hint;
                 }
                 if !params.history.is_empty() {
-                    if ui.button("Back ⬅").clicked() {
+                    ui.add_sized((size.x, size.y / 4.0), egui::Separator::default());
+                    if ui.add_sized(size, egui::Button::new("Back ⬅")).clicked() {
                         params.complete_full_move();
                         params.game_params = params.history.pop().unwrap();
                     }
@@ -284,13 +302,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     let white_width = board_width * coeff;
     let black_width = board_width * (1.0 - coeff);
     // White bar
-    draw_rectangle(
-        x_offset,
-        0.0,
-        white_width,
-        y_offset,
-        params.eval_bar_white,
-    );
+    draw_rectangle(x_offset, 0.0, white_width, y_offset, params.eval_bar_white);
     // Black bar
     draw_rectangle(
         x_offset + white_width,
@@ -368,7 +380,8 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         let as_flat = 63 - i as i8;
         if params
             .game_params
-            .full_current_move_hash_set.contains(&as_flat)
+            .full_current_move_hash_set
+            .contains(&as_flat)
         {
             draw_rectangle(
                 real_x1,
@@ -378,14 +391,8 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
                 params.highlight_color,
             );
         }
-        if params.need_hint && params.hint.contains(&as_flat) {
-            draw_rectangle(
-                real_x1,
-                real_y1,
-                cell_size,
-                cell_size,
-                params.hint_color,
-            );
+        if params.need_hint && !params.game_params.end_of_game && params.hint.contains(&as_flat) {
+            draw_rectangle(real_x1, real_y1, cell_size, cell_size, params.hint_color);
         }
         if params
             .game_params
@@ -453,6 +460,9 @@ pub fn prepare_params_for_new_game(params: &mut AllParams) {
     params.game_params.selected_checker = None;
     params.game_params.full_current_move_hash_set.clear();
     params.history.clear();
+    params.hint.clear();
+    params.need_hint = false;
+    params.elapsed_time = 0.0;
 }
 
 pub async fn new_game(scene: &mut Scene, params: &mut AllParams) {
@@ -475,7 +485,7 @@ pub async fn new_game(scene: &mut Scene, params: &mut AllParams) {
                     ui.radio_value(&mut params.players[0], Player::Human, "Human");
                     ui.radio_value(
                         &mut params.players[0],
-                        Player::Computer(ThreadBot::new()),
+                        Player::Computer(ThreadBot::new(params.search_depth)),
                         "Computer",
                     );
                 });
@@ -484,7 +494,7 @@ pub async fn new_game(scene: &mut Scene, params: &mut AllParams) {
                     ui.radio_value(&mut params.players[1], Player::Human, "Human");
                     ui.radio_value(
                         &mut params.players[1],
-                        Player::Computer(ThreadBot::new()),
+                        Player::Computer(ThreadBot::new(params.search_depth)),
                         "Computer",
                     );
                 });
