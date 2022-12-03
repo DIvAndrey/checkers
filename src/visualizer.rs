@@ -313,21 +313,24 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     );
     // Evaluation text
     let font_size = y_offset * 0.7;
-    let eval = params.static_evaluation as f64 / 100.0;
-    let text = if eval > 100_000.0 {
-        "+∞".to_string()
-    } else if eval < -100_000.0 {
-        "-∞".to_string()
-    } else if eval > 0.0 {
-        format!("+{}", eval)
-    } else if eval < 0.0 {
-        eval.to_string()
+    let eval = (params.static_evaluation as f64 / 100.0).round() as i32;
+    let eval_abs = eval.abs();
+    let (offset, text) = if eval_abs > 100_000 {
+        (1.5, "∞".to_string())
+    } else if eval_abs != 0 {
+        let res = eval_abs.to_string();
+        (res.chars().count() as f32, res)
     } else {
-        "0".to_string()
+        (0.0, "".to_string())
+    };
+    let text_x = if eval > 0 {
+        x_offset + board_width * 0.005
+    } else {
+        x_offset + board_width * 0.995 - offset * font_size * 0.95
     };
     draw_text_ex(
         text.to_string().as_str(),
-        x_offset + board_width * 0.005,
+        text_x,
         y_offset - (y_offset - font_size - y_offset * 0.05) * 0.5,
         TextParams {
             font: params.font,
