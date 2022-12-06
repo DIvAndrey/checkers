@@ -43,7 +43,7 @@ async fn main() {
             BLACK_QUEEN_BYTES,
             Some(ImageFormat::Png),
         ),
-        delay_between_moves: 0.0,
+        delay_between_moves: 0.3,
         elapsed_time: 0.0,
         board_white_color: color_u8!(235, 236, 208, 255),
         board_black_color: color_u8!(119, 149, 86, 255),

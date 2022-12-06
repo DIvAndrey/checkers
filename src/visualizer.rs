@@ -247,10 +247,8 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
             .resizable(false)
             .show(egui_ctx, |ui| {
                 ui.label("Delay between moves (sec)");
-                let size = ui
-                    .add(Slider::new(&mut params.delay_between_moves, 0.0..=2.0))
-                    .rect
-                    .size();
+                let slider = ui.add(Slider::new(&mut params.delay_between_moves, 0.0..=2.0));
+                let size = slider.rect.size();
                 if ui.add_sized(size, egui::Button::new("Restart ↩")).clicked() {
                     prepare_params_for_new_game(params);
                     return;
@@ -313,20 +311,18 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     );
     // Evaluation text
     let font_size = y_offset * 0.7;
-    let eval = (params.static_evaluation as f64 / 100.0).round() as i32;
+    let eval = params.static_evaluation as f64 / 100.0;
     let eval_abs = eval.abs();
-    let (offset, text) = if eval_abs > 100_000 {
-        (1.5, "∞".to_string())
-    } else if eval_abs != 0 {
+    let (offset, text) = if eval_abs > 100_000.0 {
+        (2.0, "∞".to_string())
+    } else {
         let res = eval_abs.to_string();
         (res.chars().count() as f32, res)
-    } else {
-        (0.0, "".to_string())
     };
-    let text_x = if eval > 0 {
+    let text_x = if eval >= 0.0 {
         x_offset + board_width * 0.005
     } else {
-        x_offset + board_width * 0.995 - offset * font_size * 0.95
+        x_offset + board_width * 0.995 - offset * font_size * 0.8
     };
     draw_text_ex(
         text.to_string().as_str(),
