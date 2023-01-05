@@ -322,7 +322,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     let text_x = if eval >= 0.0 {
         x_offset + board_width * 0.005
     } else {
-        x_offset + board_width * 0.995 - offset * font_size * 0.8
+        x_offset + board_width * 0.995 - offset * font_size * 0.85
     };
     draw_text_ex(
         text.to_string().as_str(),
