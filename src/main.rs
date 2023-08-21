@@ -30,7 +30,6 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    useful_functions::initialize();
     let mut game_params = AllParams {
         game_params: GameParams::default(),
         white_texture: Texture2D::from_file_with_format(WHITE_BYTES, Some(ImageFormat::Png)),

@@ -239,8 +239,8 @@ impl Game {
                 }
             }
             // Down right
-            let cut_cell_mask = first_bit(after & left_up_cut_mask & EXCLUDE_RIGHT_SIDE);
-            let stop_cell_mask = first_bit(after & left_up_mask & !cut_cell_mask);
+            let cut_cell_mask = first_bit_or_0(after & left_up_cut_mask & EXCLUDE_RIGHT_SIDE);
+            let stop_cell_mask = first_bit_or_0(after & left_up_mask & !cut_cell_mask);
             if cut_cell_mask != 0 {
                 let i = get_bit_i(cut_cell_mask);
                 let j = get_bit_i_or(stop_cell_mask, -1);
@@ -254,8 +254,8 @@ impl Game {
                 }
             }
             // Down left
-            let cut_cell_mask = first_bit(after & right_up_cut_mask & EXCLUDE_LEFT_SIDE);
-            let stop_cell_mask = first_bit(after & right_up_mask & !cut_cell_mask);
+            let cut_cell_mask = first_bit_or_0(after & right_up_cut_mask & EXCLUDE_LEFT_SIDE);
+            let stop_cell_mask = first_bit_or_0(after & right_up_mask & !cut_cell_mask);
             if cut_cell_mask != 7 {
                 let i = get_bit_i(cut_cell_mask);
                 let j = get_bit_i_or(stop_cell_mask, -1);

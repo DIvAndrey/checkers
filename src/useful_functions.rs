@@ -1,14 +1,3 @@
-static mut NUMBER_TO_BIT_I: [i8; 32769] = [0; 32769];
-
-#[inline(always)]
-pub fn initialize() {
-    unsafe {
-        for i in 0..16 {
-            NUMBER_TO_BIT_I[1 << i] = i;
-        }
-    }
-}
-
 #[inline(always)]
 pub fn get_bit(x: u64, i: i8) -> u64 {
     // assert!(i >= 0, "i = {}", i);
@@ -32,27 +21,20 @@ pub fn last_bit(x: u64) -> u64 {
 
 #[inline(always)]
 pub fn first_bit(x: u64) -> u64 {
-    last_bit(x.reverse_bits()).reverse_bits()
+    assert_ne!(x, 0);
+    0x8000_0000_0000_0000u64 >> x.leading_zeros()
+}
+
+#[inline(always)]
+pub fn first_bit_or_0(x: u64) -> u64 {
+    // last_bit(x.reverse_bits()).reverse_bits()
+    x & (0x8000_0000_0000_0000u64.overflowing_shr(x.leading_zeros()).0)
 }
 
 #[inline(always)]
 pub fn get_bit_i(mask: u64) -> i8 {
-    const MASK: u64 = 65535;
-    unsafe {
-        let bank = (mask >> 48) & MASK;
-        if bank != 0 {
-            return NUMBER_TO_BIT_I[bank as usize] + 48;
-        }
-        let bank = (mask >> 32) & MASK;
-        if bank != 0 {
-            return NUMBER_TO_BIT_I[bank as usize] + 32;
-        }
-        let bank = (mask >> 16) & MASK;
-        if bank != 0 {
-            return NUMBER_TO_BIT_I[bank as usize] + 16;
-        }
-        return NUMBER_TO_BIT_I[(mask & MASK) as usize];
-    }
+    if mask == 0 { return 0; }
+    mask.trailing_zeros() as i8
 }
 
 #[inline(always)]

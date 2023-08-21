@@ -298,7 +298,7 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
     // Static analysis
     let coeff = sigmoid(params.static_evaluation as f32 / 300.0);
     let white_width = board_width * coeff;
-    let black_width = board_width * (1.0 - coeff);
+    let black_width = board_width - white_width;
     // White bar
     draw_rectangle(x_offset, 0.0, white_width, y_offset, params.eval_bar_white);
     // Black bar
@@ -310,27 +310,28 @@ pub async fn draw_game_frame(scene: &mut Scene, params: &mut AllParams) {
         params.eval_bar_black,
     );
     // Evaluation text
-    let font_size = y_offset * 0.7;
+    let font_size = (y_offset * 1.8) as u16;
     let eval = params.static_evaluation as f64 / 100.0;
     let eval_abs = eval.abs();
-    let (offset, text) = if eval_abs > 100_000.0 {
-        (2.0, "∞".to_string())
+    let text = if eval_abs > 100_000.0 {
+        "+∞".to_string()
     } else {
-        let res = eval_abs.to_string();
-        (res.chars().count() as f32, res)
+        eval_abs.to_string()
     };
+    let measurements = measure_text(text.as_str(), Some(params.font), font_size, 0.5);
     let text_x = if eval >= 0.0 {
         x_offset + board_width * 0.005
     } else {
-        x_offset + board_width * 0.995 - offset * font_size * 0.85
+        x_offset + board_width * 0.995 - measurements.width
     };
     draw_text_ex(
         text.to_string().as_str(),
         text_x,
-        y_offset - (y_offset - font_size - y_offset * 0.05) * 0.5,
+        (y_offset + measurements.offset_y) * 0.5,
         TextParams {
             font: params.font,
             font_size: font_size as u16,
+            font_scale: 0.5,
             color: params.eval_bar_gray,
             ..Default::default()
         },
