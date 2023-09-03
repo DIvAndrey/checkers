@@ -1,22 +1,19 @@
 #![windows_subsystem = "windows"]
 
-extern crate core;
+mod app;
 
-mod bot;
-mod game;
-mod useful_functions;
-mod visualizer;
+pub mod bot;
+pub mod constants;
+pub mod game;
+pub mod useful_functions;
 
-use crate::bot::ThreadBot;
-use crate::visualizer::{draw_frame, AllParams, GameParams, Player, Scene};
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
-
-const WHITE_BYTES: &[u8] = include_bytes!("../data/white.png");
-const WHITE_QUEEN_BYTES: &[u8] = include_bytes!("../data/white_queen.png");
-const BLACK_BYTES: &[u8] = include_bytes!("../data/black.png");
-const BLACK_QUEEN_BYTES: &[u8] = include_bytes!("../data/black_queen.png");
-const FONT_BYTES: &[u8] = include_bytes!("../data/font.ttf");
+use app::all_params::scene::Scene;
+use crate::app::all_params::AllParams;
+use app::{draw_game_frame, draw_menu_frame};
+use crate::app::all_params::game_params::player::Player;
+use crate::bot::Bot;
 
 fn window_conf() -> Conf {
     Conf {
@@ -28,45 +25,48 @@ fn window_conf() -> Conf {
     }
 }
 
-#[macroquad::main(window_conf)]
-async fn main() {
-    let mut game_params = AllParams {
-        game_params: GameParams::default(),
-        white_texture: Texture2D::from_file_with_format(WHITE_BYTES, Some(ImageFormat::Png)),
-        white_queen_texture: Texture2D::from_file_with_format(
-            WHITE_QUEEN_BYTES,
-            Some(ImageFormat::Png),
-        ),
-        black_texture: Texture2D::from_file_with_format(BLACK_BYTES, Some(ImageFormat::Png)),
-        black_queen_texture: Texture2D::from_file_with_format(
-            BLACK_QUEEN_BYTES,
-            Some(ImageFormat::Png),
-        ),
-        delay_between_moves: 0.3,
-        elapsed_time: 0.0,
-        board_white_color: color_u8!(235, 236, 208, 255),
-        board_black_color: color_u8!(119, 149, 86, 255),
-        highlight_color: color_u8!(42, 71, 173, 100),
-        eval_bar_white: color_u8!(235, 235, 240, 255),
-        eval_bar_black: color_u8!(50, 48, 49, 255),
-        eval_bar_gray: color_u8!(150, 150, 160, 255),
-        hint_color: color_u8!(255, 201, 14, 100),
-        font: load_ttf_font_from_bytes(FONT_BYTES).expect("Не удалось загрузить шрифт"),
-        history: Vec::new(),
-        players: [Player::Human, Player::Human],
-        static_analysis: Player::Computer(ThreadBot::new(1)),
-        static_analysis_depth_step: 2,
-        static_analysis_depth: 1,
-        static_evaluation: 0,
-        static_analysis_start_depth: 6,
-        search_depth: 12,
-        last_evaluated_move: -1,
-        need_hint: false,
-        hint: Default::default(),
-    };
-    let mut game_scene = Scene::NewGameCreation;
-
-    for _ in 0.. {
-        draw_frame(&mut game_scene, &mut game_params).await;
+async fn draw_frame(params: &mut AllParams, sleep_time: f64) {
+    match params.current_scene {
+        Scene::Menu => draw_menu_frame(params).await,
+        Scene::Game => draw_game_frame(params).await,
+    }
+    let start_time = get_time();
+    while get_time() - start_time < sleep_time {
+        params.evaluation_bar.bot.poll();
+        match params.game_params.get_curr_player_mut() {
+            Player::Human => {}
+            Player::Computer(bot) => {
+                bot.poll();
+            },
+        }
     }
 }
+
+#[macroquad::main(window_conf)]
+async fn main() {
+    let mut params = AllParams::default();
+    let mut sleep_time = 0.0f64;
+    for _ in 0.. {
+        let frame_start_time = get_time();
+        draw_frame(&mut params, sleep_time.max(0.004)).await;
+        egui_macroquad::draw();
+        let update_start_time = get_time();
+        next_frame().await;
+        let update_duration = get_time() - update_start_time;
+        let frame_time = get_time() - frame_start_time;
+        if update_duration > frame_time * 0.1 {
+            sleep_time += 0.001;
+        } else {
+            sleep_time -= 0.001
+        }
+    }
+}
+
+// 14-14 game
+// v2: 0.2336
+// v3: 0.1726
+// v4: 0.1537
+// v5: 0.1774, pos eval
+// v6: 0.1301, pos eval
+// v7: 0.1226, pos eval
+// v7: 0.1176, pos eval

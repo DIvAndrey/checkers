@@ -1,6 +1,5 @@
 #[inline(always)]
 pub fn get_bit(x: u64, i: i8) -> u64 {
-    // assert!(i >= 0, "i = {}", i);
     (x >> i) & 1
 }
 
@@ -16,24 +15,26 @@ pub fn before_bit(mask: u64) -> u64 {
 
 #[inline(always)]
 pub fn last_bit(x: u64) -> u64 {
-    x & x.overflowing_neg().0
+    x & x.wrapping_neg()
 }
 
 #[inline(always)]
 pub fn first_bit(x: u64) -> u64 {
     assert_ne!(x, 0);
-    0x8000_0000_0000_0000u64 >> x.leading_zeros()
+    0x8000_0000_0000_0000u64.wrapping_shr(x.leading_zeros())
 }
 
 #[inline(always)]
 pub fn first_bit_or_0(x: u64) -> u64 {
     // last_bit(x.reverse_bits()).reverse_bits()
-    x & (0x8000_0000_0000_0000u64.overflowing_shr(x.leading_zeros()).0)
+    x & 0x8000_0000_0000_0000u64.wrapping_shr(x.leading_zeros())
 }
 
 #[inline(always)]
 pub fn get_bit_i(mask: u64) -> i8 {
-    if mask == 0 { return 0; }
+    if mask == 0 {
+        return 0;
+    }
     mask.trailing_zeros() as i8
 }
 
@@ -60,17 +61,14 @@ pub fn conv_2d_to_1d(x: usize, y: usize) -> i8 {
     i
 }
 
-#[inline(always)]
-pub fn sigmoid(x: f32) -> f32 {
-    1.0 / (1.0 + (-x).exp())
-}
 
-pub const EXCLUDE_RIGHT_SIDE: u64 = 0b_1111_1110___1111_1110___1111_1110___1111_1110___1111_1110___1111_1110___1111_1110___1111_1110;
-pub const EXCLUDE_LEFT_SIDE: u64 =  0b_0111_1111___0111_1111___0111_1111___0111_1111___0111_1111___0111_1111___0111_1111___0111_1111;
-pub const EXCLUDE_RIGHT_SIDE2: u64 = 0b_1111_1100___1111_1100___1111_1100___1111_1100___1111_1100___1111_1100___1111_1100___1111_1100;
-pub const EXCLUDE_LEFT_SIDE2: u64 =  0b_0011_1111___0011_1111___0011_1111___0011_1111___0011_1111___0011_1111___0011_1111___0011_1111;
+pub const EXCLUDE_RIGHT_COLUMN: u64 = 0b_1111_1110___1111_1110___1111_1110___1111_1110___1111_1110___1111_1110___1111_1110___1111_1110;
+pub const EXCLUDE_LEFT_COLUMN: u64 =  0b_0111_1111___0111_1111___0111_1111___0111_1111___0111_1111___0111_1111___0111_1111___0111_1111;
+pub const EXCLUDE_2_RIGHT_COLUMNS: u64 = 0b_1111_1100___1111_1100___1111_1100___1111_1100___1111_1100___1111_1100___1111_1100___1111_1100;
+pub const EXCLUDE_2_LEFT_COLUMNS: u64 =  0b_0011_1111___0011_1111___0011_1111___0011_1111___0011_1111___0011_1111___0011_1111___0011_1111;
 
-// These arrays contain numbers whose bits are diagonals on the game board
+// These arrays contain numbers whose bits correspond to diagonals on the game board.
+// It is an easy way to get diagonals containing the given cell.
 pub const DIAGONALS_UP_RIGHT: [u64; 64] = [
     1,
     258,
