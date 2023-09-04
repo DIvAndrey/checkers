@@ -235,6 +235,11 @@ pub async fn draw_game_frame(params: &mut AllParams) {
                     ui.label(text.as_str());
                     if ui.button("New game").clicked() {
                         params.current_scene = Scene::Menu;
+                        for player in &mut params.game_params.players {
+                            if let Player::Computer(bot) = player {
+                                bot.stop();
+                            }
+                        }
                         return;
                     }
                 });

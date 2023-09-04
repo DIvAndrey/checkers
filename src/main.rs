@@ -27,7 +27,10 @@ fn window_conf() -> Conf {
 
 async fn draw_frame(params: &mut AllParams, sleep_time: f64) {
     match params.current_scene {
-        Scene::Menu => draw_menu_frame(params).await,
+        Scene::Menu => {
+            draw_menu_frame(params).await;
+            return;
+        },
         Scene::Game => draw_game_frame(params).await,
     }
     let start_time = get_time();
@@ -49,15 +52,15 @@ async fn main() {
     for _ in 0.. {
         let frame_start_time = get_time();
         draw_frame(&mut params, sleep_time.max(0.004)).await;
-        egui_macroquad::draw();
         let update_start_time = get_time();
+        egui_macroquad::draw();
         next_frame().await;
         let update_duration = get_time() - update_start_time;
         let frame_time = get_time() - frame_start_time;
-        if update_duration > frame_time * 0.1 {
+        if update_duration > frame_time * 0.2 {
             sleep_time += 0.001;
         } else {
-            sleep_time -= 0.001
+            sleep_time -= 0.001;
         }
     }
 }
