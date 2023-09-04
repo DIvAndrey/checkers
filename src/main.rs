@@ -9,11 +9,12 @@ pub mod useful_functions;
 
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
+use instant::Instant;
 use app::all_params::scene::Scene;
 use crate::app::all_params::AllParams;
 use app::{draw_game_frame, draw_menu_frame};
 use crate::app::all_params::game_params::player::Player;
-use crate::bot::Bot;
+use crate::bot::{Bot, BotState};
 
 fn window_conf() -> Conf {
     Conf {
@@ -33,13 +34,16 @@ async fn draw_frame(params: &mut AllParams, sleep_time: f64) {
         },
         Scene::Game => draw_game_frame(params).await,
     }
-    let start_time = get_time();
-    while get_time() - start_time < sleep_time {
+    let timer = Instant::now();
+    while timer.elapsed().as_secs_f64() < sleep_time {
         params.evaluation_bar.bot.poll();
         match params.game_params.get_curr_player_mut() {
             Player::Human => {}
             Player::Computer(bot) => {
-                bot.poll();
+                match bot.poll() {
+                    BotState::Pending(_) => {}
+                    _ => return,
+                }
             },
         }
     }
@@ -48,20 +52,11 @@ async fn draw_frame(params: &mut AllParams, sleep_time: f64) {
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut params = AllParams::default();
-    let mut sleep_time = 0.0f64;
     for _ in 0.. {
-        let frame_start_time = get_time();
-        draw_frame(&mut params, sleep_time.max(0.004)).await;
-        let update_start_time = get_time();
+        let sleep_time = 1.0 / params.ui_params.target_fps;
+        draw_frame(&mut params, sleep_time).await;
         egui_macroquad::draw();
         next_frame().await;
-        let update_duration = get_time() - update_start_time;
-        let frame_time = get_time() - frame_start_time;
-        if update_duration > frame_time * 0.2 {
-            sleep_time += 0.001;
-        } else {
-            sleep_time -= 0.001;
-        }
     }
 }
 

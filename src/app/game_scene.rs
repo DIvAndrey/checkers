@@ -2,9 +2,7 @@ use crate::app::all_params::game_params::player::Player;
 use crate::app::all_params::game_params::position_params::PositionParams;
 use crate::app::all_params::scene::Scene;
 use crate::app::all_params::AllParams;
-use crate::app::{
-    create_delay_between_moves_label, create_delay_between_moves_slider, create_ui_scale_label, create_ui_scale_slider, prepare_params_for_a_new_game,
-};
+use crate::app::{create_delay_between_moves_label, create_delay_between_moves_slider, create_target_fps_label, create_target_fps_slider, create_ui_scale_label, create_ui_scale_slider, prepare_params_for_a_new_game};
 use crate::bot::{Bot, BotState, SearchResult};
 use crate::constants::CONSTANT_UI_SCALE_COEFFICIENT;
 use crate::game::{Checker, Move};
@@ -192,8 +190,10 @@ pub async fn draw_game_frame(params: &mut AllParams) {
                 create_ui_scale_label(ui);
                 let scale_slider = create_ui_scale_slider(ui, params);
                 create_delay_between_moves_label(ui);
-                let delay_slider = create_delay_between_moves_slider(ui, params);
-                let size = scale_slider.rect.size().max(delay_slider.rect.size());
+                create_delay_between_moves_slider(ui, params);
+                create_target_fps_label(ui);
+                create_target_fps_slider(ui, params);
+                let size = scale_slider.rect.size();
                 if ui.add_sized(size, Button::new("New game ↩")).clicked() {
                     params.current_scene = Scene::Menu;
                     return;

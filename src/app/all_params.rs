@@ -3,7 +3,7 @@ pub mod game_hint;
 pub mod game_params;
 pub mod game_timer;
 pub mod menu_params;
-pub mod ui_style;
+pub mod ui_params;
 pub mod scene;
 
 use egui_macroquad::macroquad::prelude::get_time;
@@ -13,7 +13,7 @@ use game_hint::GameHint;
 use game_params::GameParams;
 use game_timer::GameTimer;
 use menu_params::MenuParams;
-use ui_style::UiParams;
+use ui_params::UiParams;
 
 pub struct AllParams {
     pub menu_params: MenuParams,

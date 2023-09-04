@@ -5,7 +5,7 @@ use crate::app::all_params::AllParams;
 use crate::app::all_params::game_params::player::Player;
 use crate::app::all_params::menu_params::player_settings::player_creator::PlayerCreator;
 use crate::app::all_params::menu_params::player_settings::PlayerSettings;
-use crate::app::{create_delay_between_moves_label, create_delay_between_moves_slider, create_ui_scale_label, create_ui_scale_slider, prepare_params_for_a_new_game};
+use crate::app::{create_delay_between_moves_label, create_delay_between_moves_slider, create_target_fps_label, create_target_fps_slider, create_ui_scale_label, create_ui_scale_slider, prepare_params_for_a_new_game};
 use crate::bot::NegaScoutBot;
 use crate::constants::CONSTANT_UI_SCALE_COEFFICIENT;
 use crate::app::all_params::scene::Scene;
@@ -73,10 +73,12 @@ pub async fn draw_menu_frame(params: &mut AllParams) {
                     ui.vertical(|ui| {
                         create_delay_between_moves_label(ui);
                         create_ui_scale_label(ui);
+                        create_target_fps_label(ui);
                     });
                     ui.vertical(|ui| {
                         create_delay_between_moves_slider(ui, params);
                         create_ui_scale_slider(ui, params);
+                        create_target_fps_slider(ui, params);
                     });
                 });
                 ui.vertical_centered_justified(|ui| {

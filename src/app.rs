@@ -43,3 +43,11 @@ fn create_ui_scale_slider(ui: &mut egui::Ui, params: &mut AllParams) -> Response
     }
     response
 }
+
+fn create_target_fps_label(ui: &mut egui::Ui) -> Response {
+    ui.label("Target FPS")
+}
+
+fn create_target_fps_slider(ui: &mut egui::Ui, params: &mut AllParams) -> Response {
+    ui.add(Slider::new(&mut params.ui_params.target_fps, 15.0..=144.0))
+}
