@@ -125,7 +125,7 @@ impl Game {
         self.is_queen ^= (is_queen_from_bit >> from << to) ^ is_queen_from_bit;
         self.eval_white += ((to - from) * (is_queen_from_bit == 0) as i8) as i32;
         // Promotion to queen
-        if is_queen_from_bit != 0 && (to > 55 && self.current_player || to < 8 && !self.current_player) {
+        if is_queen_from_bit == 0 && (to > 55 && self.current_player || to < 8 && !self.current_player) {
             let player_coeff = ((self.current_player as i32) << 1) - 1;
             self.is_queen ^= to_mask;
             self.eval_white += player_coeff * (QUEEN_COST - PAWN_COST);
