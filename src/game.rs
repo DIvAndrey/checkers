@@ -57,10 +57,10 @@ pub struct Game {
     pub not_empty: u64,
     pub is_white: u64,
     pub is_queen: u64,
-    // `true` if white, `false` if black.
-    pub current_player: bool,
     // Game evaluation for white player. Updates dynamically as the game progresses.
     pub eval_white: i32,
+    // `true` if white, `false` if black.
+    pub current_player: bool,
 }
 
 impl Default for Game {
@@ -69,8 +69,8 @@ impl Default for Game {
             not_empty: 0b_0101_0101___1010_1010___0101_0101___0000_0000___0000_0000___1010_1010___0101_0101___1010_1010,
             is_white:  0b_0000_0000___0000_0000___0000_0000___0000_0000___0000_0000___1010_1010___0101_0101___1010_1010,
             is_queen:  0b_0000_0000___0000_0000___0000_0000___0000_0000___0000_0000___0000_0000___0000_0000___0000_0000,
-            current_player: true,
             eval_white: 0,
+            current_player: true,
         }
     }
 }
@@ -125,7 +125,7 @@ impl Game {
         self.is_queen ^= (is_queen_from_bit >> from << to) ^ is_queen_from_bit;
         self.eval_white += ((to - from) * (is_queen_from_bit == 0) as i8) as i32;
         // Promotion to queen
-        if is_queen_from_bit == 0 && (to > 55 && self.current_player || to < 8 && !self.current_player) {
+        if (to > 55 && self.current_player || to < 8 && !self.current_player) && is_queen_from_bit == 0 {
             let player_coeff = ((self.current_player as i32) << 1) - 1;
             self.is_queen ^= to_mask;
             self.eval_white += player_coeff * (QUEEN_COST - PAWN_COST);
