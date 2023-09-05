@@ -17,4 +17,4 @@ pub const QUEEN_COST: i32 = 3000;
 
 pub const MAX_NEGA_SCOUT_HASH_MAP_SIZE: usize = 5_000_000;
 pub const MIN_HASH_MAP_SAVE_SEARCH_DEPTH: i32 = 4;
-pub const MIN_NEGA_SCOUT_YIELD_DEPTH: i32 = 2;
+pub const MIN_NEGA_SCOUT_YIELD_DEPTH: i32 = 6;
