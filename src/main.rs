@@ -26,7 +26,7 @@ fn window_conf() -> Conf {
     }
 }
 
-async fn draw_frame(params: &mut AllParams, sleep_time: f64) {
+async fn draw_frame(params: &mut AllParams) {
     match params.current_scene {
         Scene::Menu => {
             draw_menu_frame(params).await;
@@ -34,6 +34,7 @@ async fn draw_frame(params: &mut AllParams, sleep_time: f64) {
         },
         Scene::Game => draw_game_frame(params).await,
     }
+    let sleep_time = 1.0 / params.ui_params.target_fps;
     let timer = Instant::now();
     while timer.elapsed().as_secs_f64() < sleep_time {
         params.evaluation_bar.bot.poll();
@@ -53,8 +54,7 @@ async fn draw_frame(params: &mut AllParams, sleep_time: f64) {
 async fn main() {
     let mut params = AllParams::default();
     for _ in 0.. {
-        let sleep_time = 1.0 / params.ui_params.target_fps;
-        draw_frame(&mut params, sleep_time).await;
+        draw_frame(&mut params).await;
         egui_macroquad::draw();
         next_frame().await;
     }

@@ -1,5 +1,5 @@
 use crate::bot::{Bot, BotState, SearchResult};
-use crate::constants::{MAX_NEGA_SCOUT_HASH_MAP_SIZE, HALF_OF_INFINITY, INFINITY, MIN_HASH_MAP_SAVE_SEARCH_DEPTH};
+use crate::constants::{MAX_NEGA_SCOUT_HASH_MAP_SIZE, HALF_OF_INFINITY, INFINITY, MIN_HASH_MAP_SAVE_SEARCH_DEPTH, MIN_NEGA_SCOUT_YIELD_DEPTH};
 use crate::game::Game;
 use async_recursion::async_recursion;
 use egui_macroquad::egui::epaint::ahash::HashMapExt;
@@ -60,7 +60,7 @@ impl NegaScoutSearcher {
         co: &Co<()>,
     ) -> i32 {
         // Checking for depth to keep good performance.
-        if depth > 4 {
+        if depth >= MIN_NEGA_SCOUT_YIELD_DEPTH {
             co.yield_(()).await;
         }
         // Clearing the hashmap if it gets too large.
