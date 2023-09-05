@@ -9,7 +9,6 @@ pub mod useful_functions;
 
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
-use instant::Instant;
 use app::all_params::scene::Scene;
 use crate::app::all_params::AllParams;
 use app::{draw_game_frame, draw_menu_frame};
@@ -35,8 +34,8 @@ async fn draw_frame(params: &mut AllParams) {
         Scene::Game => draw_game_frame(params).await,
     }
     let sleep_time = 1.0 / params.ui_params.target_fps;
-    let timer = Instant::now();
-    while timer.elapsed().as_secs_f64() < sleep_time {
+    let start_time = get_time();
+    while get_time() - start_time < sleep_time {
         params.evaluation_bar.bot.poll();
         match params.game_params.get_curr_player_mut() {
             Player::Human => return,
