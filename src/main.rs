@@ -38,7 +38,7 @@ async fn draw_frame(params: &mut AllParams, sleep_time: f64) {
     while timer.elapsed().as_secs_f64() < sleep_time {
         params.evaluation_bar.bot.poll();
         match params.game_params.get_curr_player_mut() {
-            Player::Human => {}
+            Player::Human => return,
             Player::Computer(bot) => {
                 match bot.poll() {
                     BotState::Pending(_) => {}
