@@ -59,6 +59,9 @@ impl NegaScoutSearcher {
         mut beta: i32,
         co: &Co<()>,
     ) -> i32 {
+        if game.is_draw() {
+            return 0;
+        }
         // Checking for depth to keep good performance.
         if depth >= MIN_NEGA_SCOUT_YIELD_DEPTH {
             co.yield_(()).await;

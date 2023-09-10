@@ -1,16 +1,16 @@
-use rustc_hash::{FxHashSet as HashSet, FxHashMap as HashMap};
-use crate::game::Game;
+use rustc_hash::FxHashSet;
+use crate::game::{Game, Winner};
 
 #[derive(Clone)]
 pub struct PositionParams {
     pub game: Game,
     pub last_correct_game_state: Game,
     pub selected_checker: Option<i8>,
-    pub full_current_move: Vec<(i8, i8)>,
-    pub full_current_move_hash_set: HashSet<i8>,
-    pub white_ai_eval: i32,
-    pub available_end_and_take_cells: HashMap<i8, i8>,
-    pub end_of_game: bool,
+    pub full_current_move: Vec<i8>,
+    pub full_current_move_hash_set: FxHashSet<i8>,
+    pub next_possible_cells: FxHashSet<i8>,
+    pub selected_move_with_capture: bool,
+    pub winner: Option<Winner>,
     pub moves_cnt: i32,
 }
 
@@ -22,9 +22,9 @@ impl Default for PositionParams {
             selected_checker: None,
             full_current_move: vec![],
             full_current_move_hash_set: Default::default(),
-            white_ai_eval: 0,
-            available_end_and_take_cells: Default::default(),
-            end_of_game: false,
+            next_possible_cells: Default::default(),
+            selected_move_with_capture: false,
+            winner: None,
             moves_cnt: 0,
         }
     }
@@ -33,7 +33,7 @@ impl Default for PositionParams {
 impl PositionParams {
     pub(crate) fn update_current_move_hash_set(&mut self) {
         self.full_current_move_hash_set =
-            HashSet::from_iter(self.full_current_move.iter().map(|x| x.0));
+            FxHashSet::from_iter(self.full_current_move.clone().into_iter());
     }
 
     #[inline(always)]
@@ -42,7 +42,7 @@ impl PositionParams {
         self.game.change_player();
         self.last_correct_game_state = self.game.clone();
         self.moves_cnt += 1;
-        self.end_of_game = self.game.get_moves().is_empty();
+        self.winner = self.game.get_winner();
     }
 }
 

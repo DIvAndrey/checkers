@@ -7,7 +7,7 @@ pub mod ui_params;
 pub mod scene;
 
 use egui_macroquad::macroquad::prelude::get_time;
-use crate::Scene;
+use scene::Scene;
 use evaluation_bar::EvaluationBar;
 use game_hint::GameHint;
 use game_params::GameParams;

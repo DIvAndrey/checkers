@@ -24,7 +24,16 @@ impl Default for UiParams {
         UiParams {
             new_scale_coefficient: 1.0,
             curr_scale_coefficient: 1.0,
-            target_fps: 30.0,
+            target_fps: {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    30.0
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    60.0
+                }
+            },
             white_texture: Texture2D::from_file_with_format(WHITE_CHECKER_IMG, Some(ImageFormat::Png)),
             white_queen_texture: Texture2D::from_file_with_format(
                 WHITE_QUEEN_IMG,
