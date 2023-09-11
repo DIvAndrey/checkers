@@ -1,24 +1,38 @@
+use std::{alloc, slice};
 use lazy_static::lazy_static;
-use crate::constants::{MOVES_WITHOUT_CAPTURES_BYTES, MOVES_WITH_CAPTURES_BYTES};
+use crate::constants::{MOVES_WITHOUT_CAPTURES_COMPRESSED, MOVES_WITH_CAPTURES_COMPRESSED};
 
 lazy_static! {
     pub static ref MOVES_WITHOUT_CAPTURES: &'static [u64] = {
-        assert_eq!(MOVES_WITHOUT_CAPTURES_BYTES.len() % 8, 0);
+        let mut result = unsafe {
+            alloc::alloc(alloc::Layout::array::<u8>(DECOMPRESSED_SIZE).unwrap())
+        };
+        let slice = unsafe {
+            slice::from_raw_parts_mut(result, DECOMPRESSED_SIZE)
+        };
+        snap::raw::Decoder::new().decompress(MOVES_WITHOUT_CAPTURES_COMPRESSED, slice).unwrap();
         unsafe {
-            core::slice::from_raw_parts(MOVES_WITHOUT_CAPTURES_BYTES.as_ptr() as *const u64, MOVES_WITHOUT_CAPTURES_BYTES.len() / 8)
+            slice::from_raw_parts(result as *const u64, MAX_POSITION_MAGIC_INDEX * 64)
         }
     };
 
     pub static ref MOVES_WITH_CAPTURES: &'static [u64] = {
-        assert_eq!(MOVES_WITHOUT_CAPTURES_BYTES.len() % 8, 0);
+        let mut result = unsafe {
+            alloc::alloc(alloc::Layout::array::<u8>(DECOMPRESSED_SIZE).unwrap())
+        };
+        let slice = unsafe {
+            slice::from_raw_parts_mut(result, DECOMPRESSED_SIZE)
+        };
+        snap::raw::Decoder::new().decompress(MOVES_WITH_CAPTURES_COMPRESSED, slice).unwrap();
         unsafe {
-            core::slice::from_raw_parts(MOVES_WITH_CAPTURES_BYTES.as_ptr() as *const u64, MOVES_WITH_CAPTURES_BYTES.len() / 8)
+            slice::from_raw_parts(result as *const u64, MAX_POSITION_MAGIC_INDEX * 64)
         }
     };
 }
 
 pub const MAX_POSITION_MAGIC_INDEX: usize = 65536;
 pub const MAGIC_RSHIFT: i32 = 48;
+const DECOMPRESSED_SIZE: usize = MAX_POSITION_MAGIC_INDEX * 8 * 64;
 
 pub const MAGIC_NUMBERS: [u64; 64] = [
     0,

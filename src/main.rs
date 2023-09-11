@@ -7,6 +7,8 @@ pub mod constants;
 pub mod game;
 pub mod useful_functions;
 
+use std::fs::File;
+use std::io::Write;
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
 use app::all_params::scene::Scene;
@@ -64,6 +66,18 @@ async fn main() {
 // 11.84 0.2575
 // 12.09 0.2629
 // 6.52  0.1303
+
+// use std::fs::File;
+// use std::io::Write;
+//
+// pub const MOVES_WITHOUT_CAPTURES: &[u8] = include_bytes!("../data/moves_without_captures.bin");
+// pub const MOVES_WITH_CAPTURES: &[u8] = include_bytes!("../data/moves_with_captures.bin");
+//
+// fn main() {
+//     let compressed = snap::raw::Encoder::new().compress_vec(MOVES_WITHOUT_CAPTURES).unwrap();
+//     let mut file = File::create(r"C:\Scripts\rust projects\rust_checkers-main - Copy\data\moves_without_captures.bin.snappy").unwrap();
+//     file.write(compressed.as_slice()).unwrap();
+// }
 
 //
 // use std::fs::File;

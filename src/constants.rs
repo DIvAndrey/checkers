@@ -3,8 +3,8 @@ pub const WHITE_QUEEN_IMG: &[u8] = include_bytes!("../data/white_queen.png");
 pub const BLACK_CHECKER_IMG: &[u8] = include_bytes!("../data/black.png");
 pub const BLACK_QUEEN_IMG: &[u8] = include_bytes!("../data/black_queen.png");
 pub const FONT: &[u8] = include_bytes!("../data/font.ttf");
-pub const MOVES_WITHOUT_CAPTURES_BYTES: &[u8] = include_bytes!("../data/moves_without_captures.bin");
-pub const MOVES_WITH_CAPTURES_BYTES: &[u8] = include_bytes!("../data/moves_with_captures.bin");
+pub const MOVES_WITHOUT_CAPTURES_COMPRESSED: &[u8] = include_bytes!("../data/moves_without_captures.bin.snappy");
+pub const MOVES_WITH_CAPTURES_COMPRESSED: &[u8] = include_bytes!("../data/moves_with_captures.bin.snappy");
 
 #[cfg(target_arch = "wasm32")]
 pub const CONSTANT_UI_SCALE_COEFFICIENT: f32 = 1.0 / 500.0;
