@@ -20,6 +20,7 @@ pub fn last_bit(x: u64) -> u64 {
 
 #[inline(always)]
 pub fn first_bit(x: u64) -> u64 {
+    #[cfg(debug_assertions)]
     assert_ne!(x, 0);
     0x8000_0000_0000_0000u64.wrapping_shr(x.leading_zeros())
 }
@@ -48,23 +49,32 @@ pub fn get_bit_i_or(mask: u64, val: i8) -> i8 {
 
 #[inline(always)]
 pub fn conv_1d_to_2d(i: i8) -> (usize, usize) {
-    assert!(i >= 0, "i = {}", i);
-    assert!(i < 64, "i = {}", i);
+    #[cfg(debug_assertions)]
+    {
+        assert!(i >= 0, "i = {}", i);
+        assert!(i < 64, "i = {}", i);
+    }
     ((7 - (i & 0b111)) as usize, (7 - i / 8) as usize)
 }
 
 #[inline(always)]
 pub fn conv_1d_to_2d_i8(i: i8) -> (i8, i8) {
-    assert!(i >= 0, "i = {}", i);
-    assert!(i < 64, "i = {}", i);
+    #[cfg(debug_assertions)]
+    {
+        assert!(i >= 0, "i = {}", i);
+        assert!(i < 64, "i = {}", i);
+    }
     ((7 - (i & 0b111)), (7 - (i >> 3)))
 }
 
 #[inline(always)]
 pub fn conv_2d_to_1d(x: usize, y: usize) -> i8 {
     let i = 63 - x as i8 - 8 * y as i8;
-    assert!(i >= 0, "i = {}", i);
-    assert!(i < 64, "i = {}", i);
+    #[cfg(debug_assertions)]
+    {
+        assert!(i >= 0, "i = {}", i);
+        assert!(i < 64, "i = {}", i);
+    }
     i
 }
 

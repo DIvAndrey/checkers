@@ -4,7 +4,7 @@ use crate::constants::{MOVES_WITHOUT_CAPTURES_COMPRESSED, MOVES_WITH_CAPTURES_CO
 
 lazy_static! {
     pub static ref MOVES_WITHOUT_CAPTURES: &'static [u64] = {
-        let mut result = unsafe {
+        let result = unsafe {
             alloc::alloc(alloc::Layout::array::<u8>(DECOMPRESSED_SIZE).unwrap())
         };
         let slice = unsafe {
@@ -17,7 +17,7 @@ lazy_static! {
     };
 
     pub static ref MOVES_WITH_CAPTURES: &'static [u64] = {
-        let mut result = unsafe {
+        let result = unsafe {
             alloc::alloc(alloc::Layout::array::<u8>(DECOMPRESSED_SIZE).unwrap())
         };
         let slice = unsafe {

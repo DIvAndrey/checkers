@@ -180,13 +180,17 @@ impl Game {
     }
 
     fn make_cutting_move(&mut self, from: i8, to: i8) {
-        assert_eq!(get_bit(self.not_empty, from), 1);
-        assert_eq!(get_bit(self.not_empty, to), 0);
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(get_bit(self.not_empty, from), 1);
+            assert_eq!(get_bit(self.not_empty, to), 0);
+        }
         let mut curr_cell = from;
         let diff = to - from;
         let delta = diff.signum() * if diff % 7 == 0 {
             7
         } else {
+            #[cfg(debug_assertions)]
             assert_eq!(diff % 9, 0);
             9
         };
@@ -311,8 +315,10 @@ impl Game {
             let cells_to_capture: u64 = enemy & diagonal;
             let magic_i = ((cells_to_capture.wrapping_mul(magic_num)) >> MAGIC_RSHIFT) as usize;
             let after_capture = MOVES_WITH_CAPTURES[MAX_POSITION_MAGIC_INDEX * from as usize + magic_i];
-            assert_ne!(before_blocker, 1);
-            assert_ne!(after_capture, 1);
+            #[cfg(debug_assertions)]{
+                assert_ne!(before_blocker, 1);
+                assert_ne!(after_capture, 1);
+            }
             let mut can_move_to = before_blocker & after_capture;
             while can_move_to != 0 {
                 let mask = last_bit(can_move_to);
@@ -450,6 +456,7 @@ impl Game {
             let blockers: u64 = self.not_empty & DIAGONALS[coord as usize];
             let magic_i = ((blockers.wrapping_mul(MAGIC_NUMBERS[coord as usize])) >> MAGIC_RSHIFT) as usize;
             let mut can_move_to = MOVES_WITHOUT_CAPTURES[MAX_POSITION_MAGIC_INDEX * coord as usize + magic_i];
+            #[cfg(debug_assertions)]
             assert_ne!(can_move_to, 1, "{coord} {blockers:b} {magic_i} {can_move_to:b}");
             while can_move_to != 0 {
                 let mask = last_bit(can_move_to);
@@ -498,6 +505,7 @@ impl Game {
 impl PartialEq for Game {
     fn eq(&self, other: &Self) -> bool {
         let res = (self.not_empty, self.is_white, self.is_queen, self.current_player, self.boring_moves_counter) == (other.not_empty, other.is_white, other.is_queen, other.current_player, self.boring_moves_counter);
+        #[cfg(debug_assertions)]
         if res {
             assert_eq!(self.eval_white, other.eval_white);
         }

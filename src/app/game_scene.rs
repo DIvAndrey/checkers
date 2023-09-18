@@ -231,7 +231,7 @@ pub async fn draw_game_frame(params: &mut AllParams) {
                 .auto_sized()
                 .anchor(Align2::CENTER_CENTER, egui::Vec2::ZERO)
                 .show(egui_ctx, |ui| {
-                    ui.label(text.as_str());
+                    ui.label(&text);
                     if ui.button("New game").clicked() {
                         params.current_scene = Scene::Menu;
                         for player in &mut params.game_params.players {
@@ -262,14 +262,14 @@ pub async fn draw_game_frame(params: &mut AllParams) {
     } else {
         format!("{:.2}", eval_abs)
     };
-    let measurements = measure_text(text.as_str(), Some(params.ui_params.font), font_size, 0.5);
+    let measurements = measure_text(&text, Some(params.ui_params.font), font_size, 0.5);
     let text_x = if eval >= 0.0 {
         x_offset + board_width * 0.005
     } else {
         x_offset + board_width * 0.995 - measurements.width
     };
     draw_text_ex(
-        text.to_string().as_str(),
+        &text,
         text_x,
         (y_offset + measurements.offset_y) * 0.5,
         TextParams {
@@ -295,7 +295,7 @@ pub async fn draw_game_frame(params: &mut AllParams) {
         let font_size = min_res * 0.02;
         if x == 0 {
             draw_text_ex(
-                (8 - y).to_string().as_str(),
+                &(8 - y).to_string(),
                 real_x1 + board_letters_offset,
                 real_y1 + font_size + board_letters_offset,
                 TextParams {
@@ -308,7 +308,7 @@ pub async fn draw_game_frame(params: &mut AllParams) {
         }
         if y == 7 {
             draw_text_ex(
-                ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'][x].to_string().as_str(),
+                &['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'][x].to_string(),
                 real_x1 + cell_size - font_size - board_letters_offset,
                 real_y1 + cell_size - board_letters_offset,
                 TextParams {
@@ -366,5 +366,5 @@ pub async fn draw_game_frame(params: &mut AllParams) {
         }
     }
 
-    draw_text(format!("FPS: {}", get_fps()).as_str(), 10.0, 20.0, 18.0, BLACK);
+    draw_text(&format!("FPS: {}", get_fps()), 10.0, 20.0, 18.0, BLACK);
 }

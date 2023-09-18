@@ -7,8 +7,6 @@ pub mod constants;
 pub mod game;
 pub mod useful_functions;
 
-use std::fs::File;
-use std::io::Write;
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
 use app::all_params::scene::Scene;
@@ -77,6 +75,12 @@ async fn main() {
 //     let compressed = snap::raw::Encoder::new().compress_vec(MOVES_WITHOUT_CAPTURES).unwrap();
 //     let mut file = File::create(r"C:\Scripts\rust projects\rust_checkers-main - Copy\data\moves_without_captures.bin.snappy").unwrap();
 //     file.write(compressed.as_slice()).unwrap();
+// }
+
+// fn main() {
+//     let mut file1 = File::open(r"C:\Scripts\RustRover\rust_checkers-main\data\moves_without_captures.bin").unwrap();
+//     let mut file2 = File::create(r"C:\Scripts\RustRover\rust_checkers-main\data\moves_without_captures.bin.brotli").unwrap();
+//     brotli::BrotliCompress(&mut file1, &mut file2, &BrotliEncoderParams::default()).unwrap();
 // }
 
 //
