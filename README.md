@@ -1,4 +1,4 @@
-# rust_checkers
+# checkers
 Russian draughts (checkers) game written in Rust.
 Uses NegaScout search algorithm, hash tables, bitboards and magic numbers to calculate bot moves.
 
